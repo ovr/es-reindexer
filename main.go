@@ -91,25 +91,12 @@ func fetchUsers(
 }
 
 func startFetchUsers(db *gorm.DB, users chan *User, configuration DataBaseConfig) {
-	//var total uint64
-	//
-	//totalRow := db.Raw(`
-	//	SELECT COUNT(id) FROM users USE INDEX(signup_srch_active) WHERE activated = 1 AND searchable = 1;
-	//`).Row()
-	//err := totalRow.Scan(&total)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//log.Print("Total users: ", total)
-
-	const THREADS_NUMBER = 4
-
 	var wg *sync.WaitGroup = new(sync.WaitGroup)
+	threadsNumbers := uint64(configuration.Threads)
 
-	for i := uint64(0); i < uint64(configuration.Threads); i++ {
+	for i := uint64(0); i < threadsNumbers; i++ {
 		wg.Add(1)
-		go fetchUsers(db.New(), users, wg, THREADS_NUMBER, i, configuration)
+		go fetchUsers(db.New(), users, wg, threadsNumbers, i, configuration)
 	}
 
 	// Don't close users channel before all fetch goroutines will finish
@@ -125,8 +112,6 @@ func batchUsers(client *elastic.Client, users chan *User, done chan bool, config
 	bulkRequest := client.Bulk()
 
 	for user := range users {
-		//log.Print(user.Id)
-
 		request := elastic.NewBulkIndexRequest().
 			Index("users").
 			Type("users").
