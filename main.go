@@ -9,6 +9,7 @@ import (
 	"log"
 	"strconv"
 	"sync"
+	"flag"
 )
 
 func fetchUsers(db *gorm.DB, users chan *User, wg *sync.WaitGroup, partSize uint64, part uint64)  {
@@ -146,22 +147,33 @@ func batchUsers(client *elastic.Client, users chan *User, done chan bool) {
 }
 
 func main() {
+	var configFile string
+	flag.StringVar(&configFile, "config", "", "Config filepath")
+	flag.Parse()
+
+	if configFile == "" {
+		panic("Please setup config parameter")
+	}
+
+	var config Configuration
+	config.Init(configFile)
+
 	done := make(chan bool, 1)
 
-	db, err := gorm.Open("mysql", "user:password@/db?charset=utf8")
+	db, err := gorm.Open(config.DataBase.Dialect, config.DataBase.Uri)
 	if err != nil {
 		panic(err)
 	}
 	defer db.Close()
 
-	client, err := elastic.NewClient(elastic.SetURL("http://host:9200"))
+	client, err := elastic.NewClient(elastic.SetURL(config.ElasticSearch.Uri))
 	if err != nil {
 		panic(err)
 	}
 
-	db.LogMode(false)
-	db.DB().SetMaxIdleConns(1)
-	db.DB().SetMaxOpenConns(10)
+	db.LogMode(config.DataBase.ShowLog)
+	db.DB().SetMaxIdleConns(config.DataBase.MaxIdleConnections)
+	db.DB().SetMaxOpenConns(config.DataBase.MaxOpenConnections)
 
 	users := make(chan *User, 1000) // 100k async channel
 

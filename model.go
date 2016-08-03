@@ -5,6 +5,10 @@ package main
 import (
 	"strings"
 	"strconv"
+	"io/ioutil"
+	"fmt"
+	"os"
+	"encoding/json"
 )
 
 type Known struct {
@@ -94,5 +98,36 @@ func (this User) Prepare() {
 
 			this.Known = append(this.Known, Known{Lang: parts[0], Level: uint8(level)})
 		}
+	}
+}
+
+type ElasticSearchConfig struct {
+	Uri string `json:"uri"`
+}
+
+type DataBaseConfig struct {
+	Dialect            string `json:"dialect"`
+	Uri                string `json:"uri"`
+	MaxIdleConnections int    `json:"max-idle-connections"`
+	MaxOpenConnections int    `json:"max-open-connections"`
+	ShowLog            bool   `json:"log"`
+}
+
+type Configuration struct {
+	ElasticSearch ElasticSearchConfig         `json:"elasticsearch"`
+	DataBase      DataBaseConfig `json:"db"`
+}
+
+func (this *Configuration) Init(configFile string) {
+	configJson, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	err = json.Unmarshal(configJson, &this)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }

@@ -1,0 +1,12 @@
+{
+  "elasticsearch": {
+    "uri": "http://host:9200"
+  },
+  "db": {
+    "dialect": "mysql",
+    "uri": "user:password@/db?charset=utf8",
+    "max-idle-connections": 1,
+    "max-open-connections": 10,
+    "log": true
+  }
+}
