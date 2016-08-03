@@ -12,10 +12,16 @@ import (
 	"sync"
 )
 
-func fetchUsers(db *gorm.DB, users chan *User, wg *sync.WaitGroup, numberOfThread uint64, threadNumber uint64) {
-	const LIMIT uint64 = 1000
+func fetchUsers(
+	db *gorm.DB,
+	users chan *User,
+	wg *sync.WaitGroup,
+	numberOfThread uint64,
+	threadNumber uint64,
+	configuration DataBaseConfig) {
 
 	var lastId uint64 = 0
+	var limit string = strconv.FormatUint(uint64(configuration.Limit), 10)
 
 	for {
 		rows, err := db.Raw(`
@@ -54,7 +60,7 @@ func fetchUsers(db *gorm.DB, users chan *User, wg *sync.WaitGroup, numberOfThrea
 			WHERE u.id > ` + strconv.FormatUint(lastId, 10) +
 			` AND u.id % ` + strconv.FormatUint(numberOfThread, 10) + ` = ` + strconv.FormatUint(threadNumber, 10) +
 			` AND activated = 1 AND searchable = 1 ORDER BY id ASC
-			LIMIT ` + strconv.FormatUint(LIMIT, 10)).Rows()
+			LIMIT ` + limit).Rows()
 		if err != nil {
 			panic(err)
 		}
@@ -84,7 +90,7 @@ func fetchUsers(db *gorm.DB, users chan *User, wg *sync.WaitGroup, numberOfThrea
 	log.Print("Finished fetch goroutine ", threadNumber)
 }
 
-func startFetchUsers(db *gorm.DB, users chan *User) {
+func startFetchUsers(db *gorm.DB, users chan *User, configuration DataBaseConfig) {
 	//var total uint64
 	//
 	//totalRow := db.Raw(`
@@ -101,9 +107,9 @@ func startFetchUsers(db *gorm.DB, users chan *User) {
 
 	var wg *sync.WaitGroup = new(sync.WaitGroup)
 
-	for i := uint64(0); i < THREADS_NUMBER; i++ {
+	for i := uint64(0); i < uint64(configuration.Threads); i++ {
 		wg.Add(1)
-		go fetchUsers(db.New(), users, wg, THREADS_NUMBER, i)
+		go fetchUsers(db.New(), users, wg, THREADS_NUMBER, i, configuration)
 	}
 
 	// Don't close users channel before all fetch goroutines will finish
@@ -115,7 +121,7 @@ func startFetchUsers(db *gorm.DB, users chan *User) {
 	close(users)
 }
 
-func batchUsers(client *elastic.Client, users chan *User, done chan bool) {
+func batchUsers(client *elastic.Client, users chan *User, done chan bool, configuration ElasticSearchConfig) {
 	bulkRequest := client.Bulk()
 
 	for user := range users {
@@ -129,7 +135,7 @@ func batchUsers(client *elastic.Client, users chan *User, done chan bool) {
 
 		bulkRequest.Add(request)
 
-		if bulkRequest.NumberOfActions() >= 1000 {
+		if bulkRequest.NumberOfActions() >= int(configuration.Limit) {
 			log.Print("[ES] Bulk insert go ", bulkRequest.NumberOfActions(), " channel buffer size ", len(users))
 
 			_, err := bulkRequest.Do()
@@ -144,7 +150,7 @@ func batchUsers(client *elastic.Client, users chan *User, done chan bool) {
 	log.Print("Closed channel")
 
 	if bulkRequest.NumberOfActions() > 0 {
-		log.Print("Bulk insert go ", bulkRequest.NumberOfActions())
+		log.Print("Latest Bulk insert go ", bulkRequest.NumberOfActions())
 		_, err := bulkRequest.Do()
 		if err != nil {
 			panic(err)
@@ -185,8 +191,8 @@ func main() {
 
 	users := make(chan *User, config.ChannelBufferSize) // async channel
 
-	go startFetchUsers(db, users)
-	go batchUsers(client, users, done)
+	go startFetchUsers(db, users, config.DataBase)
+	go batchUsers(client, users, done, config.ElasticSearch)
 
 	log.Print("Finished ", <-done)
 }

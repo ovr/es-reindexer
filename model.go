@@ -102,7 +102,8 @@ func (this User) Prepare() {
 }
 
 type ElasticSearchConfig struct {
-	Uri string `json:"uri"`
+	Uri   string `json:"uri"`
+	Limit uint16 `json:"limit"`
 }
 
 type DataBaseConfig struct {
@@ -111,6 +112,8 @@ type DataBaseConfig struct {
 	MaxIdleConnections int    `json:"max-idle-connections"`
 	MaxOpenConnections int    `json:"max-open-connections"`
 	ShowLog            bool   `json:"log"`
+	Threads            uint8  `json:"threads"`
+	Limit              uint16 `json:"limit"`
 }
 
 type Configuration struct {

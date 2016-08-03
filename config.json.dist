@@ -1,13 +1,16 @@
 {
   "elasticsearch": {
-    "uri": "http://host:9200"
+    "uri": "http://host:9200",
+    "limit": 500
   },
   "db": {
     "dialect": "mysql",
     "uri": "user:password@/db?charset=utf8",
     "max-idle-connections": 1,
     "max-open-connections": 10,
-    "log": true
+    "log": true,
+    "threads": 4,
+    "limit": 500
   },
   "channel-buffer-size": 100000
 }
