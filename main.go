@@ -130,7 +130,7 @@ func batchUsers(client *elastic.Client, users chan *User, done chan bool) {
 		bulkRequest.Add(request)
 
 		if bulkRequest.NumberOfActions() >= 1000 {
-			log.Print("[ES] Bulk insert go ", bulkRequest.NumberOfActions())
+			log.Print("[ES] Bulk insert go ", bulkRequest.NumberOfActions(), " channel buffer size ", len(users))
 
 			_, err := bulkRequest.Do()
 			if err != nil {
