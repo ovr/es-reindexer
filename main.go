@@ -12,11 +12,12 @@ import (
 	"sync"
 )
 
-func fetchUsers(db *gorm.DB, users chan *User, wg *sync.WaitGroup, partSize uint64, part uint64) {
-	const LIMIT uint64 = 500
+func fetchUsers(db *gorm.DB, users chan *User, wg *sync.WaitGroup, numberOfThread uint64, threadNumber uint64) {
+	const LIMIT uint64 = 1000
 
-	maxOffset := part*partSize + partSize
-	for offset := uint64(part * partSize); offset < maxOffset; offset += LIMIT {
+	var lastId uint64 = 0
+
+	for {
 		rows, err := db.Raw(`
 			SELECT
 				u.id,
@@ -48,12 +49,17 @@ func fetchUsers(db *gorm.DB, users chan *User, wg *sync.WaitGroup, partSize uint
 				FROM user_langs known WHERE known.user_id = u.id) as knowninfo,
 				(SELECT GROUP_CONCAT(CONCAT_WS('|', learn.lang, learn.level) SEPARATOR ',')
 				FROM user_langs_learn learn WHERE learn.user_id = u.id) as learninfo
-			FROM users u USE INDEX(signup_srch_active)
+			FROM users u
 			LEFT JOIN profiles_text pt ON u.id = pt.id
-			WHERE activated = 1 AND searchable = 1
-			LIMIT ` + strconv.FormatUint(LIMIT, 10) + ` OFFSET ` + strconv.FormatUint(offset, 10)).Rows()
+			WHERE u.id > ` + strconv.FormatUint(lastId, 10) +
+			` AND u.id % ` + strconv.FormatUint(numberOfThread, 10) + ` = ` + strconv.FormatUint(threadNumber, 10) +
+			` AND activated = 1 AND searchable = 1 LIMIT ` + strconv.FormatUint(LIMIT, 10)).Rows()
 		if err != nil {
 			panic(err)
+		}
+
+		if !rows.Next() {
+			break
 		}
 
 		for rows.Next() {
@@ -64,8 +70,7 @@ func fetchUsers(db *gorm.DB, users chan *User, wg *sync.WaitGroup, partSize uint
 				panic(err)
 			}
 
-			//db.Model(&user).Related(&user.Known);
-			//db.Model(&user).Related(&user.Learn);
+			lastId = user.Id
 			user.Prepare()
 
 			users <- &user
@@ -75,21 +80,21 @@ func fetchUsers(db *gorm.DB, users chan *User, wg *sync.WaitGroup, partSize uint
 	}
 
 	wg.Done()
-	log.Print("Finished fetch goroutine ", part)
+	log.Print("Finished fetch goroutine ", threadNumber)
 }
 
 func startFetchUsers(db *gorm.DB, users chan *User) {
-	var total uint64
-
-	totalRow := db.Raw(`
-		SELECT COUNT(id) FROM users USE INDEX(signup_srch_active) WHERE activated = 1 AND searchable = 1;
-	`).Row()
-	err := totalRow.Scan(&total)
-	if err != nil {
-		panic(err)
-	}
-
-	log.Print("Total users: ", total)
+	//var total uint64
+	//
+	//totalRow := db.Raw(`
+	//	SELECT COUNT(id) FROM users USE INDEX(signup_srch_active) WHERE activated = 1 AND searchable = 1;
+	//`).Row()
+	//err := totalRow.Scan(&total)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//log.Print("Total users: ", total)
 
 	const THREADS_NUMBER = 4
 
@@ -97,7 +102,7 @@ func startFetchUsers(db *gorm.DB, users chan *User) {
 
 	for i := uint64(0); i < THREADS_NUMBER; i++ {
 		wg.Add(1)
-		go fetchUsers(db.New(), users, wg, total/THREADS_NUMBER, i)
+		go fetchUsers(db.New(), users, wg, THREADS_NUMBER, i)
 	}
 
 	// Don't close users channel before all fetch goroutines will finish
