@@ -3,12 +3,12 @@
 package main
 
 import (
-	"strings"
-	"strconv"
-	"io/ioutil"
-	"fmt"
-	"os"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"strconv"
+	"strings"
 )
 
 type Known struct {
@@ -32,37 +32,37 @@ func (Learn) TableName() string {
 }
 
 type User struct {
-	Id            uint64       `json:"id"`
-	Last_login    string       `json:"last_login"`
-	Modified      string       `json:"modified"`
-	Name          string       `json:"name"`
-	Birth         string       `json:"birth"`
-	Age           uint8       `json:"age"`
-	Username      string       `json:"username"`
-	Main_photo_id string       `json:"main_photo_id"`
-	Photo_exists  bool         `json:"photo_exists"`
-	Main_thumb    string       `json:"photo_exists"`
-	Cont          string       `json:"continent"`
-	Sex           string       `json:"sex"`
-	SexBool       bool         `json:"sex_bool"`
-	Tz            string       `json:"tz"`
-	Сity          string       `json:"city"`
-	Country       string       `json:"country"`
-	Description   string       `json:"description"`
-	Books         string       `json:"books"`
-	Hobbies       string       `json:"hobbies"`
-	Movies        string       `json:"movies"`
-	Requests      string       `json:"requests"`
-	Music         string       `json:"music"`
-	Quotes        string       `json:"quotes"`
-	Tv            string       `json:"tv"`
-	Langex_desc   string       `json:"langex_desc"`
+	Id            uint64 `json:"id"`
+	Last_login    string `json:"last_login"`
+	Modified      string `json:"modified"`
+	Name          string `json:"name"`
+	Birth         string `json:"birth"`
+	Age           uint8  `json:"age"`
+	Username      string `json:"username"`
+	Main_photo_id string `json:"main_photo_id"`
+	Photo_exists  bool   `json:"photo_exists"`
+	Main_thumb    string `json:"photo_exists"`
+	Cont          string `json:"continent"`
+	Sex           string `json:"sex"`
+	SexBool       bool   `json:"sex_bool"`
+	Tz            string `json:"tz"`
+	Сity          string `json:"city"`
+	Country       string `json:"country"`
+	Description   string `json:"description"`
+	Books         string `json:"books"`
+	Hobbies       string `json:"hobbies"`
+	Movies        string `json:"movies"`
+	Requests      string `json:"requests"`
+	Music         string `json:"music"`
+	Quotes        string `json:"quotes"`
+	Tv            string `json:"tv"`
+	Langex_desc   string `json:"langex_desc"`
 
-	Learninfo     string
-	Knowninfo     string
+	Learninfo string
+	Knowninfo string
 
-	Known         []Known         `json:"known"`
-	Learn         []Learn         `json:"learn"`
+	Known []Known `json:"known"`
+	Learn []Learn `json:"learn"`
 }
 
 func (User) TableName() string {
@@ -114,9 +114,9 @@ type DataBaseConfig struct {
 }
 
 type Configuration struct {
-	ElasticSearch     ElasticSearchConfig         `json:"elasticsearch"`
-	DataBase          DataBaseConfig              `json:"db"`
-	ChannelBufferSize int                         `json:"channel-buffer-size"`
+	ElasticSearch     ElasticSearchConfig `json:"elasticsearch"`
+	DataBase          DataBaseConfig      `json:"db"`
+	ChannelBufferSize int                 `json:"channel-buffer-size"`
 }
 
 func (this *Configuration) Init(configFile string) {

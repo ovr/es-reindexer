@@ -3,19 +3,19 @@
 package main
 
 import (
+	"flag"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	"gopkg.in/olivere/elastic.v3"
 	"log"
 	"strconv"
 	"sync"
-	"flag"
 )
 
-func fetchUsers(db *gorm.DB, users chan *User, wg *sync.WaitGroup, partSize uint64, part uint64)  {
+func fetchUsers(db *gorm.DB, users chan *User, wg *sync.WaitGroup, partSize uint64, part uint64) {
 	const LIMIT uint64 = 500
 
-	maxOffset := part * partSize + partSize;
+	maxOffset := part*partSize + partSize
 	for offset := uint64(part * partSize); offset < maxOffset; offset += LIMIT {
 		rows, err := db.Raw(`
 			SELECT
@@ -75,13 +75,15 @@ func fetchUsers(db *gorm.DB, users chan *User, wg *sync.WaitGroup, partSize uint
 	}
 
 	wg.Done()
-	log.Print("Finished fetch goroutine ", part);
+	log.Print("Finished fetch goroutine ", part)
 }
 
 func startFetchUsers(db *gorm.DB, users chan *User) {
 	var total uint64
 
-	totalRow := db.Raw(`SELECT COUNT(*) FROM users WHERE activated = 1 AND searchable = 1;`).Row()
+	totalRow := db.Raw(`
+		SELECT COUNT(id) FROM users USE INDEX(signup_srch_active) WHERE activated = 1 AND searchable = 1;
+	`).Row()
 	err := totalRow.Scan(&total)
 	if err != nil {
 		panic(err)
@@ -89,13 +91,13 @@ func startFetchUsers(db *gorm.DB, users chan *User) {
 
 	log.Print("Total users: ", total)
 
-	const THREADS_NUMBER  = 4;
+	const THREADS_NUMBER = 4
 
 	var wg *sync.WaitGroup = new(sync.WaitGroup)
 
 	for i := uint64(0); i < THREADS_NUMBER; i++ {
 		wg.Add(1)
-		go fetchUsers(db.New(), users, wg, total / THREADS_NUMBER, i)
+		go fetchUsers(db.New(), users, wg, total/THREADS_NUMBER, i)
 	}
 
 	// Don't close users channel before all fetch goroutines will finish
@@ -133,9 +135,9 @@ func batchUsers(client *elastic.Client, users chan *User, done chan bool) {
 		}
 	}
 
-	log.Print("Closed channel");
+	log.Print("Closed channel")
 
-	if (bulkRequest.NumberOfActions() > 0) {
+	if bulkRequest.NumberOfActions() > 0 {
 		log.Print("Bulk insert go ", bulkRequest.NumberOfActions())
 		_, err := bulkRequest.Do()
 		if err != nil {
