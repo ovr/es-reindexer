@@ -53,7 +53,8 @@ func fetchUsers(db *gorm.DB, users chan *User, wg *sync.WaitGroup, numberOfThrea
 			LEFT JOIN profiles_text pt ON u.id = pt.id
 			WHERE u.id > ` + strconv.FormatUint(lastId, 10) +
 			` AND u.id % ` + strconv.FormatUint(numberOfThread, 10) + ` = ` + strconv.FormatUint(threadNumber, 10) +
-			` AND activated = 1 AND searchable = 1 LIMIT ` + strconv.FormatUint(LIMIT, 10)).Rows()
+			` AND activated = 1 AND searchable = 1 ORDER BY id ASC
+			LIMIT ` + strconv.FormatUint(LIMIT, 10)).Rows()
 		if err != nil {
 			panic(err)
 		}
