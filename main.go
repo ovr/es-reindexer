@@ -48,7 +48,7 @@ func fetchUsers(db *gorm.DB, users chan *User, wg *sync.WaitGroup, partSize uint
 				FROM user_langs known WHERE known.user_id = u.id) as knowninfo,
 				(SELECT GROUP_CONCAT(CONCAT_WS('|', learn.lang, learn.level) SEPARATOR ',')
 				FROM user_langs_learn learn WHERE learn.user_id = u.id) as learninfo
-			FROM users u
+			FROM users u USE INDEX(signup_srch_active)
 			LEFT JOIN profiles_text pt ON u.id = pt.id
 			WHERE activated = 1 AND searchable = 1
 			LIMIT ` + strconv.FormatUint(LIMIT, 10) + ` OFFSET ` + strconv.FormatUint(offset, 10)).Rows()
