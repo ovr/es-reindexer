@@ -48,6 +48,14 @@ type User struct {
 	Tz            string `json:"tz"`
 	Сity          string `json:"city"`
 	Country       string `json:"country"`
+
+	Lfor_email    bool `json:"lfor_email"`
+	Lfor_flirt    bool `json:"lfor_flirt"`
+	Lfor_friend   bool `json:"lfor_friend"`
+	Lfor_langex   bool `json:"lfor_langex"`
+	Lfor_relation bool `json:"lfor_relation"`
+	Lfor_snail    bool `json:"lfor_snail"`
+
 	Description   string `json:"description"`
 	Books         string `json:"books"`
 	Hobbies       string `json:"hobbies"`
@@ -58,11 +66,11 @@ type User struct {
 	Tv            string `json:"tv"`
 	Langex_desc   string `json:"langex_desc"`
 
-	Learninfo string
-	Knowninfo string
+	Learninfo     string
+	Knowninfo     string
 
-	Known []Known `json:"known"`
-	Learn []Learn `json:"learn"`
+	Known         []Known `json:"known"`
+	Learn         []Learn `json:"learn"`
 }
 
 func (User) TableName() string {
