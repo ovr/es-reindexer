@@ -8,5 +8,6 @@
     "max-idle-connections": 1,
     "max-open-connections": 10,
     "log": true
-  }
+  },
+  "channel-buffer-size": 100000
 }

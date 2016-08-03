@@ -114,8 +114,9 @@ type DataBaseConfig struct {
 }
 
 type Configuration struct {
-	ElasticSearch ElasticSearchConfig         `json:"elasticsearch"`
-	DataBase      DataBaseConfig `json:"db"`
+	ElasticSearch     ElasticSearchConfig         `json:"elasticsearch"`
+	DataBase          DataBaseConfig              `json:"db"`
+	ChannelBufferSize int                         `json:"channel-buffer-size"`
 }
 
 func (this *Configuration) Init(configFile string) {

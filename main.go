@@ -175,7 +175,7 @@ func main() {
 	db.DB().SetMaxIdleConns(config.DataBase.MaxIdleConnections)
 	db.DB().SetMaxOpenConns(config.DataBase.MaxOpenConnections)
 
-	users := make(chan *User, 1000) // 100k async channel
+	users := make(chan *User, config.ChannelBufferSize) // async channel
 
 	go startFetchUsers(db, users)
 	go batchUsers(client, users, done)
