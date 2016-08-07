@@ -1,7 +1,7 @@
 ES Indexer
 ==========
 
-> This tool is aimed to gain fast performance on indexing users from Mysql DB -> ElasticSearch.
+> This tool is aimed to gain fast performance on indexing users from MySQL DB -> ElasticSearch.
 
 
 # LICENSE
