@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 )
 
 func fetchUsers(
@@ -143,6 +144,8 @@ func fetchGeoNames(
 		for rows.Next() {
 			var row GeoName
 
+			atomic.AddUint64(&totalFetch, 1)
+
 			err := db.ScanRows(rows, &row)
 			if err != nil {
 				panic(err)
@@ -197,7 +200,13 @@ func processFetchedRecords(
 		bulkRequest.Add(request)
 
 		if bulkRequest.NumberOfActions() >= int(configuration.Limit) {
-			log.Print("[ES] Bulk insert go ", bulkRequest.NumberOfActions(), " channel buffer size ", len(fetchedRecords))
+			log.Print(
+				"[ES] Bulk insert ", bulkRequest.NumberOfActions(),
+				" buffer ", len(fetchedRecords),
+				" fetch ", totalFetch,
+				" send ", totalSend)
+
+			atomic.AddUint64(&totalSend, uint64(bulkRequest.NumberOfActions()))
 
 			_, err := bulkRequest.Do()
 			if err != nil {
@@ -237,6 +246,11 @@ func startProcessing(
 	// Don't close fetchedRecords channel before all fetch goroutines will finish
 	wg.Wait()
 }
+
+var (
+	totalFetch uint64 = 0
+	totalSend  uint64 = 0
+)
 
 func main() {
 	var configFile string
