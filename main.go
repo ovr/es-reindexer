@@ -8,13 +8,14 @@ import (
 	"github.com/jinzhu/gorm"
 	"gopkg.in/olivere/elastic.v3"
 	"log"
+	"os"
 	"strconv"
 	"sync"
 )
 
 func fetchUsers(
 	db *gorm.DB,
-	users chan *User,
+	users chan FetchedRecord,
 	wg *sync.WaitGroup,
 	numberOfThread uint64,
 	threadNumber uint64,
@@ -86,7 +87,7 @@ func fetchUsers(
 			lastId = user.Id
 			user.Prepare()
 
-			users <- &user
+			users <- user
 		}
 
 		rows.Close()
@@ -96,7 +97,7 @@ func fetchUsers(
 	log.Print("Finished fetch goroutine ", threadNumber)
 }
 
-func startFetchUsers(db *gorm.DB, users chan *User, configuration DataBaseConfig) {
+func startFetchUsers(db *gorm.DB, users chan FetchedRecord, configuration DataBaseConfig) {
 	var wg *sync.WaitGroup = new(sync.WaitGroup)
 	threadsNumbers := uint64(configuration.Threads)
 
@@ -114,14 +115,78 @@ func startFetchUsers(db *gorm.DB, users chan *User, configuration DataBaseConfig
 	close(users)
 }
 
-func batchUsers(client *elastic.Client, users chan *User, done chan bool, configuration ElasticSearchConfig) {
+func fetchGeoNames(
+	db *gorm.DB,
+	channel chan FetchedRecord,
+	wg *sync.WaitGroup,
+	numberOfThread uint64,
+	threadNumber uint64,
+	configuration DataBaseConfig) {
+
+	var lastId uint64 = 0
+	var limit string = strconv.FormatUint(uint64(configuration.Limit), 10)
+
+	for {
+		rows, err := db.Raw(`
+			SELECT * FROM geoname WHERE geonameid > ` + strconv.FormatUint(lastId, 10) +
+			` AND geonameid % ` + strconv.FormatUint(numberOfThread, 10) + ` = ` + strconv.FormatUint(threadNumber, 10) +
+			` ORDER BY geonameid ASC
+			LIMIT ` + limit).Rows()
+		if err != nil {
+			panic(err)
+		}
+
+		if !rows.Next() {
+			break
+		}
+
+		for rows.Next() {
+			var row GeoName
+
+			err := db.ScanRows(rows, &row)
+			if err != nil {
+				panic(err)
+			}
+
+			lastId = row.Geonameid
+			row.Prepare()
+
+			channel <- row
+		}
+
+		rows.Close()
+	}
+
+	wg.Done()
+	log.Print("Finished fetch goroutine ", threadNumber)
+}
+
+func startFetchGeoNames(db *gorm.DB, fetchedRecords chan FetchedRecord, configuration DataBaseConfig) {
+	var wg *sync.WaitGroup = new(sync.WaitGroup)
+	threadsNumbers := uint64(configuration.Threads)
+
+	for i := uint64(0); i < threadsNumbers; i++ {
+		wg.Add(1)
+		go fetchGeoNames(db.New(), fetchedRecords, wg, threadsNumbers, i, configuration)
+	}
+
+	// Don't close fetchedRecords channel before all fetch goroutines will finish
+	wg.Wait()
+
+	log.Print("Waith group for fetch finished")
+
+	// No records to fetch, lets close channel to stop range query and send latest bulk request
+	close(fetchedRecords)
+}
+
+func processFetchedRecords(client *elastic.Client, users chan FetchedRecord, done chan bool, configuration ElasticSearchConfig) {
 	bulkRequest := client.Bulk()
 
 	for user := range users {
 		request := elastic.NewBulkIndexRequest().
 			Index("users").
 			Type("users").
-			Id(strconv.FormatUint(user.Id, 10)).
+			Id(strconv.FormatUint(user.GetId(), 10)).
 			Doc(user)
 
 		bulkRequest.Add(request)
@@ -180,10 +245,23 @@ func main() {
 	db.DB().SetMaxIdleConns(config.DataBase.MaxIdleConnections)
 	db.DB().SetMaxOpenConns(config.DataBase.MaxOpenConnections)
 
-	users := make(chan *User, config.ChannelBufferSize) // async channel
+	fetchedRecords := make(chan FetchedRecord, config.ChannelBufferSize) // async channel
 
-	go startFetchUsers(db, users, config.DataBase)
-	go batchUsers(client, users, done, config.ElasticSearch)
+	command := flag.Arg(0)
+	switch command {
+	case "users":
+		go startFetchUsers(db, fetchedRecords, config.DataBase)
+		break
+	case "geonames":
+		go startFetchGeoNames(db, fetchedRecords, config.DataBase)
+		break
+	default:
+		log.Print("Unknown command, available commands: [users, geonames]")
+		os.Exit(1)
+		break
+	}
+
+	go processFetchedRecords(client, fetchedRecords, done, config.ElasticSearch)
 
 	log.Print("Finished ", <-done)
 }
