@@ -182,7 +182,7 @@ func startFetchGeoNames(db *gorm.DB, fetchedRecords chan FetchedRecord, configur
 func processFetchedRecords(
 	client *elastic.Client,
 	fetchedRecords chan FetchedRecord,
-	done chan bool,
+	wg *sync.WaitGroup,
 	configuration ElasticSearchConfig,
 	meta MetaDataES) {
 	bulkRequest := client.Bulk()
@@ -218,7 +218,24 @@ func processFetchedRecords(
 		}
 	}
 
-	done <- true
+	wg.Done()
+}
+
+func startProcessing(
+	client *elastic.Client,
+	fetchedRecords chan FetchedRecord,
+	configuration ElasticSearchConfig,
+	meta MetaDataES) {
+
+	var wg *sync.WaitGroup = new(sync.WaitGroup)
+
+	for i := uint8(0); i < configuration.Threads; i++ {
+		wg.Add(1)
+		go processFetchedRecords(client, fetchedRecords, wg, configuration, meta)
+	}
+
+	// Don't close fetchedRecords channel before all fetch goroutines will finish
+	wg.Wait()
 }
 
 func main() {
@@ -232,8 +249,6 @@ func main() {
 
 	var config Configuration
 	config.Init(configFile)
-
-	done := make(chan bool, 1)
 
 	db, err := gorm.Open(config.DataBase.Dialect, config.DataBase.Uri)
 	if err != nil {
@@ -252,15 +267,17 @@ func main() {
 
 	fetchedRecords := make(chan FetchedRecord, config.ChannelBufferSize) // async channel
 
+	var metaData MetaDataES
+
 	command := flag.Arg(0)
 	switch command {
 	case "users":
 		go startFetchUsers(db, fetchedRecords, config.DataBase)
-		go processFetchedRecords(client, fetchedRecords, done, config.ElasticSearch, MetaDataESUsers{})
+		metaData = MetaDataESGeoNames{}
 		break
 	case "geonames":
 		go startFetchGeoNames(db, fetchedRecords, config.DataBase)
-		go processFetchedRecords(client, fetchedRecords, done, config.ElasticSearch, MetaDataESGeoNames{})
+		metaData = MetaDataESGeoNames{}
 		break
 	default:
 		log.Print("Unknown command, available commands: [users, geonames]")
@@ -268,5 +285,7 @@ func main() {
 		break
 	}
 
-	log.Print("Finished ", <-done)
+	startProcessing(client, fetchedRecords, config.ElasticSearch, metaData)
+
+	log.Print("Finished ")
 }

@@ -1,7 +1,8 @@
 {
   "elasticsearch": {
     "uri": "http://host:9200",
-    "limit": 500
+    "limit": 500,
+    "threads": 8
   },
   "db": {
     "dialect": "mysql",

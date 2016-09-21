@@ -15,8 +15,9 @@ type Location struct {
 }
 
 type ElasticSearchConfig struct {
-	Uri   string `json:"uri"`
-	Limit uint16 `json:"limit"`
+	Uri     string `json:"uri"`
+	Limit   uint16 `json:"limit"`
+	Threads uint8  `json:"threads"`
 }
 
 type DataBaseConfig struct {
@@ -63,21 +64,21 @@ type MetaDataESUsers struct {
 }
 
 func (MetaDataESUsers) GetIndex() string {
-	return "users";
+	return "users"
 }
 
 func (MetaDataESUsers) GetType() string {
-	return "users";
+	return "users"
 }
 
 type MetaDataESGeoNames struct {
 	MetaDataES
 }
 
-func (MetaDataESGeoNames) GetIndex() string  {
-	return "geonames";
+func (MetaDataESGeoNames) GetIndex() string {
+	return "geonames"
 }
 
 func (MetaDataESGeoNames) GetType() string {
-	return "geonames";
+	return "geonames"
 }
