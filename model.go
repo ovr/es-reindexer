@@ -52,3 +52,32 @@ func (this *Configuration) Init(configFile string) {
 type FetchedRecord interface {
 	GetId() uint64
 }
+
+type MetaDataES interface {
+	GetIndex() string
+	GetType() string
+}
+
+type MetaDataESUsers struct {
+	MetaDataES
+}
+
+func (MetaDataESUsers) GetIndex() string {
+	return "users";
+}
+
+func (MetaDataESUsers) GetType() string {
+	return "users";
+}
+
+type MetaDataESGeoNames struct {
+	MetaDataES
+}
+
+func (MetaDataESGeoNames) GetIndex() string  {
+	return "geonames";
+}
+
+func (MetaDataESGeoNames) GetType() string {
+	return "geonames";
+}

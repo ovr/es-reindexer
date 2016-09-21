@@ -179,20 +179,25 @@ func startFetchGeoNames(db *gorm.DB, fetchedRecords chan FetchedRecord, configur
 	close(fetchedRecords)
 }
 
-func processFetchedRecords(client *elastic.Client, users chan FetchedRecord, done chan bool, configuration ElasticSearchConfig) {
+func processFetchedRecords(
+	client *elastic.Client,
+	fetchedRecords chan FetchedRecord,
+	done chan bool,
+	configuration ElasticSearchConfig,
+	meta MetaDataES) {
 	bulkRequest := client.Bulk()
 
-	for user := range users {
+	for record := range fetchedRecords {
 		request := elastic.NewBulkIndexRequest().
-			Index("users").
-			Type("users").
-			Id(strconv.FormatUint(user.GetId(), 10)).
-			Doc(user)
+			Index(meta.GetIndex()).
+			Type(meta.GetType()).
+			Id(strconv.FormatUint(record.GetId(), 10)).
+			Doc(record)
 
 		bulkRequest.Add(request)
 
 		if bulkRequest.NumberOfActions() >= int(configuration.Limit) {
-			log.Print("[ES] Bulk insert go ", bulkRequest.NumberOfActions(), " channel buffer size ", len(users))
+			log.Print("[ES] Bulk insert go ", bulkRequest.NumberOfActions(), " channel buffer size ", len(fetchedRecords))
 
 			_, err := bulkRequest.Do()
 			if err != nil {
@@ -251,17 +256,17 @@ func main() {
 	switch command {
 	case "users":
 		go startFetchUsers(db, fetchedRecords, config.DataBase)
+		go processFetchedRecords(client, fetchedRecords, done, config.ElasticSearch, MetaDataESUsers{})
 		break
 	case "geonames":
 		go startFetchGeoNames(db, fetchedRecords, config.DataBase)
+		go processFetchedRecords(client, fetchedRecords, done, config.ElasticSearch, MetaDataESGeoNames{})
 		break
 	default:
 		log.Print("Unknown command, available commands: [users, geonames]")
 		os.Exit(1)
 		break
 	}
-
-	go processFetchedRecords(client, fetchedRecords, done, config.ElasticSearch)
 
 	log.Print("Finished ", <-done)
 }
