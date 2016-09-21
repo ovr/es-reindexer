@@ -80,6 +80,8 @@ func fetchUsers(
 		for rows.Next() {
 			var user User
 
+			atomic.AddUint64(&totalFetch, 1)
+			
 			err := db.ScanRows(rows, &user)
 			if err != nil {
 				panic(err)
