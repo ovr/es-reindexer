@@ -5,7 +5,7 @@ package main
 type GeoName struct {
 	FetchedRecord
 
-	Geonameid uint64
+	Geonameid uint64 `json:"-"`
 
 	Name           string `json:"name"`
 	Asciiname      string `json:"asciiname"`
@@ -24,8 +24,8 @@ type GeoName struct {
 	Timezone       string `json:"timezone"`
 	Moddate        string `json:"moddate"`
 
-	Latitude  float32
-	Longitude float32
+	Latitude  float32 `json:"-"`
+	Longitude float32 `json:"-"`
 
 	Location Location
 }
