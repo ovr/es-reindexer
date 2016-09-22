@@ -11,7 +11,6 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"sync/atomic"
 )
 
 func fetchUsers(
@@ -80,7 +79,7 @@ func fetchUsers(
 		for rows.Next() {
 			var user User
 
-			atomic.AddUint64(&totalFetch, 1)
+			totalFetch.Add(1)
 
 			err := db.ScanRows(rows, &user)
 			if err != nil {
@@ -146,7 +145,7 @@ func fetchGeoNames(
 		for rows.Next() {
 			var row GeoName
 
-			atomic.AddUint64(&totalFetch, 1)
+			totalFetch.Add(1)
 
 			err := db.ScanRows(rows, &row)
 			if err != nil {
@@ -202,13 +201,13 @@ func processFetchedRecords(
 		bulkRequest.Add(request)
 
 		if bulkRequest.NumberOfActions() >= int(configuration.Limit) {
-			atomic.AddUint64(&totalSend, uint64(bulkRequest.NumberOfActions()))
+			totalSend.Add(uint64(bulkRequest.NumberOfActions()))
 
 			log.Print(
 				"[ES] Bulk insert ", bulkRequest.NumberOfActions(),
 				" buffer ", len(fetchedRecords),
-				" fetch ", totalFetch,
-				" send ", totalSend)
+				" fetch ", totalFetch.Value(),
+				" send ", totalSend.Value())
 
 			_, err := bulkRequest.Do()
 			if err != nil {
@@ -250,8 +249,8 @@ func startProcessing(
 }
 
 var (
-	totalFetch uint64 = 0
-	totalSend  uint64 = 0
+	totalFetch Counter
+	totalSend  Counter
 )
 
 func main() {

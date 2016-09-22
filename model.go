@@ -7,7 +7,22 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime"
+	"sync/atomic"
 )
+
+type Counter struct {
+	value uint64
+}
+
+func (this *Counter) Add(x uint64) {
+	atomic.AddUint64(&this.value, x)
+	runtime.Gosched()
+}
+
+func (this *Counter) Value() uint64 {
+	return atomic.LoadUint64(&this.value)
+}
 
 type Location struct {
 	Lat float32 `json:"lat"`
