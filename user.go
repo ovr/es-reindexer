@@ -30,7 +30,7 @@ func (Learn) TableName() string {
 type User struct {
 	FetchedRecord
 
-	Id            uint64
+	Id            uint64 `json:"-"`
 	Last_login    string `json:"last_login"`
 	Modified      string `json:"modified"`
 	Name          string `json:"name"`
@@ -64,8 +64,8 @@ type User struct {
 	Tv          string `json:"tv"`
 	Langex_desc string `json:"langex_desc"`
 
-	Learninfo string
-	Knowninfo string
+	Learninfo string `json:"-"`
+	Knowninfo string `json:"-"`
 
 	Known []Known `json:"known"`
 	Learn []Learn `json:"learn"`
