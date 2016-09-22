@@ -81,7 +81,7 @@ func fetchUsers(
 			var user User
 
 			atomic.AddUint64(&totalFetch, 1)
-			
+
 			err := db.ScanRows(rows, &user)
 			if err != nil {
 				panic(err)
@@ -202,13 +202,13 @@ func processFetchedRecords(
 		bulkRequest.Add(request)
 
 		if bulkRequest.NumberOfActions() >= int(configuration.Limit) {
+			atomic.AddUint64(&totalSend, uint64(bulkRequest.NumberOfActions()))
+
 			log.Print(
 				"[ES] Bulk insert ", bulkRequest.NumberOfActions(),
 				" buffer ", len(fetchedRecords),
 				" fetch ", totalFetch,
 				" send ", totalSend)
-
-			atomic.AddUint64(&totalSend, uint64(bulkRequest.NumberOfActions()))
 
 			_, err := bulkRequest.Do()
 			if err != nil {
