@@ -21,10 +21,18 @@ func fetchUsers(
 	threadNumber uint64,
 	configuration DataBaseConfig) {
 
-	var lastId uint64 = 0
-	var limit string = strconv.FormatUint(uint64(configuration.Limit), 10)
+	var (
+		threadsCount = strconv.FormatUint(numberOfThread, 10)
+		threadId     = strconv.FormatUint(threadNumber, 10)
+		limit        = strconv.FormatUint(uint64(configuration.Limit), 10)
+
+		lastId    uint64 = 0
+		lastCount uint64
+	)
 
 	for {
+		lastCount = 0
+
 		rows, err := db.Raw(`
 			SELECT
 				u.id,
@@ -65,21 +73,18 @@ func fetchUsers(
 			FROM users u
 			LEFT JOIN profiles_text pt ON u.id = pt.id
 			WHERE u.id > ` + strconv.FormatUint(lastId, 10) +
-			` AND u.id % ` + strconv.FormatUint(numberOfThread, 10) + ` = ` + strconv.FormatUint(threadNumber, 10) +
+			` AND u.id % ` + threadsCount + ` = ` + threadId +
 			` AND activated = 1 AND searchable = 1 ORDER BY id ASC
 			LIMIT ` + limit).Rows()
+
 		if err != nil {
 			panic(err)
 		}
 
-		if !rows.Next() {
-			break
-		}
-
 		for rows.Next() {
-			var user User
+			lastCount++
 
-			totalFetch.Add(1)
+			var user User
 
 			err := db.ScanRows(rows, &user)
 			if err != nil {
@@ -91,6 +96,13 @@ func fetchUsers(
 
 			users <- user
 		}
+
+		if lastCount == 0 {
+			// Nothing to fetch
+			break
+		}
+
+		totalFetch.Add(lastCount)
 
 		rows.Close()
 	}
@@ -112,6 +124,7 @@ func startFetchUsers(db *gorm.DB, users chan FetchedRecord, configuration DataBa
 	wg.Wait()
 
 	log.Print("Waith group for fetch finished")
+	log.Print("Total Fetched ", totalFetch.Value())
 
 	// No users, lets close channel to stop range query and send latest bulk request
 	close(users)
@@ -125,38 +138,50 @@ func fetchGeoNames(
 	threadNumber uint64,
 	configuration DataBaseConfig) {
 
-	var lastId uint64 = 0
-	var limit string = strconv.FormatUint(uint64(configuration.Limit), 10)
+	var (
+		threadsCount = strconv.FormatUint(numberOfThread, 10)
+		threadId     = strconv.FormatUint(threadNumber, 10)
+		limit        = strconv.FormatUint(uint64(configuration.Limit), 10)
+
+		lastId    uint64 = 0
+		lastCount uint64
+	)
 
 	for {
+		lastCount = 0
+
 		rows, err := db.Raw(`
 			SELECT * FROM geoname WHERE geonameid > ` + strconv.FormatUint(lastId, 10) +
-			` AND geonameid % ` + strconv.FormatUint(numberOfThread, 10) + ` = ` + strconv.FormatUint(threadNumber, 10) +
+			` AND geonameid % ` + threadsCount + ` = ` + threadId +
 			` ORDER BY geonameid ASC
 			LIMIT ` + limit).Rows()
+
 		if err != nil {
 			panic(err)
 		}
 
-		if !rows.Next() {
-			break
-		}
-
 		for rows.Next() {
-			var row GeoName
+			lastCount++
 
-			totalFetch.Add(1)
+			var row GeoName
 
 			err := db.ScanRows(rows, &row)
 			if err != nil {
 				panic(err)
 			}
 
-			lastId = row.Geonameid
+			lastId = row.GetId()
 			row.Prepare()
 
 			channel <- row
 		}
+
+		if lastCount == 0 {
+			// Nothing to fetch
+			break
+		}
+
+		totalFetch.Add(lastCount)
 
 		rows.Close()
 	}
@@ -178,6 +203,7 @@ func startFetchGeoNames(db *gorm.DB, fetchedRecords chan FetchedRecord, configur
 	wg.Wait()
 
 	log.Print("Waith group for fetch finished")
+	log.Print("Total Fetched ", totalFetch.Value())
 
 	// No records to fetch, lets close channel to stop range query and send latest bulk request
 	close(fetchedRecords)
