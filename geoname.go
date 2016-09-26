@@ -3,7 +3,7 @@
 package main
 
 type GeoName struct {
-	FetchedRecord
+	FetchedRecord `json:"-"`
 
 	Geonameid      uint64 `json:"-"`
 

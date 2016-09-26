@@ -28,7 +28,7 @@ func (Learn) TableName() string {
 }
 
 type User struct {
-	FetchedRecord
+	FetchedRecord `json:"-"`
 
 	Id            uint64 `json:"-"`
 	Last_login    string `json:"last_login"`
