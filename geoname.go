@@ -27,7 +27,7 @@ type GeoName struct {
 	Latitude  float32 `json:"-"`
 	Longitude float32 `json:"-"`
 
-	Location Location
+	Location Location `json:"location"`
 }
 
 func (GeoName) TableName() string {
