@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"encoding/json"
 )
 
 func fetchUsers(
@@ -151,7 +152,14 @@ func fetchGeoNames(
 		lastCount = 0
 
 		rows, err := db.Raw(`
-			SELECT * FROM geoname WHERE geonameid > ` + strconv.FormatUint(lastId, 10) +
+			SELECT geo.*,
+			(
+				SELECT
+				admin1.name FROM admin1CodesAscii admin1
+				WHERE admin1.code = CONCAT(geo.country, '.', geo.admin1)
+			) as region
+			FROM geoname as geo
+			WHERE geonameid > ` + strconv.FormatUint(lastId, 10) +
 			` AND geonameid % ` + threadsCount + ` = ` + threadId +
 			` ORDER BY geonameid ASC
 			LIMIT ` + limit).Rows()
@@ -172,6 +180,9 @@ func fetchGeoNames(
 
 			lastId = row.GetId()
 			row.Prepare()
+
+			json, _ := json.Marshal(row)
+			log.Print(string(json))
 
 			channel <- row
 		}

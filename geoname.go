@@ -5,7 +5,7 @@ package main
 type GeoName struct {
 	FetchedRecord
 
-	Geonameid uint64 `json:"-"`
+	Geonameid      uint64 `json:"-"`
 
 	Name           string `json:"name"`
 	Asciiname      string `json:"asciiname"`
@@ -24,10 +24,12 @@ type GeoName struct {
 	Timezone       string `json:"timezone"`
 	Moddate        string `json:"moddate"`
 
-	Latitude  float32 `json:"-"`
-	Longitude float32 `json:"-"`
+	Region         string `json:"region"`
 
-	Location Location `json:"location"`
+	Latitude       float32 `json:"-"`
+	Longitude      float32 `json:"-"`
+
+	Location       Location `json:"location"`
 }
 
 func (GeoName) TableName() string {
