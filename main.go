@@ -178,11 +178,13 @@ func fetchGeoNames(
 				panic(err)
 			}
 
+			db.Model(&row).Related(&row.AlternativeNames, "AlternativeNames");
+
+			res, _ := json.Marshal(row.AlternativeNames)
+			log.Print(string(res))
+
 			lastId = row.GetId()
 			row.Prepare()
-
-			json, _ := json.Marshal(row)
-			log.Print(string(json))
 
 			channel <- row
 		}
@@ -201,7 +203,9 @@ func fetchGeoNames(
 	log.Print("Finished fetch goroutine ", threadNumber)
 }
 
-func startFetchGeoNames(db *gorm.DB, fetchedRecords chan FetchedRecord, configuration DataBaseConfig) {
+func startProcessing(
+	client *elastic.Client,
+	configuration ElasticSearchConfig, ) {
 	var wg *sync.WaitGroup = new(sync.WaitGroup)
 	threadsNumbers := uint64(configuration.Threads)
 
@@ -219,70 +223,6 @@ func startFetchGeoNames(db *gorm.DB, fetchedRecords chan FetchedRecord, configur
 	// No records to fetch, lets close channel to stop range query and send latest bulk request
 	close(fetchedRecords)
 }
-
-func processFetchedRecords(
-	client *elastic.Client,
-	fetchedRecords chan FetchedRecord,
-	wg *sync.WaitGroup,
-	configuration ElasticSearchConfig,
-	meta MetaDataES) {
-	bulkRequest := client.Bulk()
-
-	for record := range fetchedRecords {
-		request := elastic.NewBulkIndexRequest().
-			Index(meta.GetIndex()).
-			Type(meta.GetType()).
-			Id(strconv.FormatUint(record.GetId(), 10)).
-			Doc(record)
-
-		bulkRequest.Add(request)
-
-		if bulkRequest.NumberOfActions() >= int(configuration.Limit) {
-			totalSend.Add(uint64(bulkRequest.NumberOfActions()))
-
-			log.Print(
-				"[ES] Bulk insert ", bulkRequest.NumberOfActions(),
-				" buffer ", len(fetchedRecords),
-				" fetch ", totalFetch.Value(),
-				" send ", totalSend.Value())
-
-			_, err := bulkRequest.Do()
-			if err != nil {
-				panic(err)
-			}
-
-			bulkRequest = client.Bulk()
-		}
-	}
-
-	log.Print("Closed channel")
-
-	if bulkRequest.NumberOfActions() > 0 {
-		log.Print("Latest Bulk insert go ", bulkRequest.NumberOfActions())
-		_, err := bulkRequest.Do()
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	wg.Done()
-}
-
-func startProcessing(
-	client *elastic.Client,
-	fetchedRecords chan FetchedRecord,
-	configuration ElasticSearchConfig,
-	meta MetaDataES) {
-
-	var wg *sync.WaitGroup = new(sync.WaitGroup)
-
-	for i := uint8(0); i < configuration.Threads; i++ {
-		wg.Add(1)
-		go processFetchedRecords(client, fetchedRecords, wg, configuration, meta)
-	}
-
-	// Don't close fetchedRecords channel before all fetch goroutines will finish
-	wg.Wait()
 }
 
 var (
