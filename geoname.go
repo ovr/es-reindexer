@@ -7,8 +7,8 @@ type GeoAlternateName struct {
 	GeoNameid       uint64  `gorm:"column:geonameid" json:"-"`
 	Language        string  `gorm:"column:isoLanguage" json:"language"`
 	Name            string  `gorm:"column:alternateName" json:"name"`
-	IsPreferredName bool    `json:"is_preferred"`
-	IsShortName     bool    `json:"is_short"`
+	IsPreferredName bool    `gorm:"column:is_preferred_name" json:"is_preferred"`
+	IsShortName     bool    `json:"-"`
 	IsColloquail    bool    `json:"-"`
 	IsHistoric      bool    `json:"-"`
 }
@@ -25,8 +25,8 @@ type GeoName struct {
 	Name             string `json:"name"`
 	Asciiname        string `json:"asciiname"`
 
-	Alternatenames   string `json:"alternatenames"`
-	LocaleNames      string `gorm:"column:locale_names" json:"localenames"`
+	Alternatenames   string `gorm:"column:alternatenames" json:"alternatenames"`
+	LocaleNames      string `gorm:"column:localenames" json:"localenames"`
 
 	Fclass           string `json:"fclass"`
 	Fcode            string `json:"fcode"`

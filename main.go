@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
@@ -11,7 +12,6 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"encoding/json"
 )
 
 func fetchUsers(
@@ -92,7 +92,7 @@ func fetchUsers(
 				panic(err)
 			}
 
-			lastId = user.Id
+			lastId = user.GetId()
 			user.Prepare()
 
 			users <- user
@@ -112,13 +112,24 @@ func fetchUsers(
 	log.Print("Finished fetch goroutine ", threadNumber)
 }
 
-func startFetchUsers(db *gorm.DB, users chan FetchedRecord, configuration DataBaseConfig) {
+func startFetch(db *gorm.DB, users chan FetchedRecord, configuration DataBaseConfig, command string) {
 	var wg *sync.WaitGroup = new(sync.WaitGroup)
 	threadsNumbers := uint64(configuration.Threads)
 
 	for i := uint64(0); i < threadsNumbers; i++ {
 		wg.Add(1)
-		go fetchUsers(db.New(), users, wg, threadsNumbers, i, configuration)
+
+		switch command {
+		case "users":
+			go fetchUsers(db.New(), users, wg, threadsNumbers, i, configuration)
+			break
+		case "geonames":
+			go fetchGeoNames(db.New(), users, wg, threadsNumbers, i, configuration)
+			break
+		default:
+			panic("Unknown command to process")
+		}
+
 	}
 
 	// Don't close users channel before all fetch goroutines will finish
@@ -178,11 +189,6 @@ func fetchGeoNames(
 				panic(err)
 			}
 
-			db.Model(&row).Related(&row.AlternativeNames, "AlternativeNames");
-
-			res, _ := json.Marshal(row.AlternativeNames)
-			log.Print(string(res))
-
 			lastId = row.GetId()
 			row.Prepare()
 
@@ -203,26 +209,69 @@ func fetchGeoNames(
 	log.Print("Finished fetch goroutine ", threadNumber)
 }
 
+func processFetchedRecords(
+	client *elastic.Client,
+	fetchedRecords chan FetchedRecord,
+	wg *sync.WaitGroup,
+	configuration ElasticSearchConfig,
+	meta MetaDataES) {
+	bulkRequest := client.Bulk()
+
+	for record := range fetchedRecords {
+		request := elastic.NewBulkIndexRequest().
+			Index(meta.GetIndex()).
+			Type(meta.GetType()).
+			Id(strconv.FormatUint(record.GetId(), 10)).
+			Doc(record)
+
+		bulkRequest.Add(request)
+
+		if bulkRequest.NumberOfActions() >= int(configuration.Limit) {
+			totalSend.Add(uint64(bulkRequest.NumberOfActions()))
+
+			log.Print(
+				"[ES] Bulk insert ", bulkRequest.NumberOfActions(),
+				" buffer ", len(fetchedRecords),
+				" fetch ", totalFetch.Value(),
+				" send ", totalSend.Value())
+
+			_, err := bulkRequest.Do()
+			if err != nil {
+				panic(err)
+			}
+
+			bulkRequest = client.Bulk()
+		}
+	}
+
+	log.Print("Closed channel")
+
+	if bulkRequest.NumberOfActions() > 0 {
+		log.Print("Latest Bulk insert go ", bulkRequest.NumberOfActions())
+		_, err := bulkRequest.Do()
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	wg.Done()
+}
+
 func startProcessing(
 	client *elastic.Client,
-	configuration ElasticSearchConfig, ) {
-	var wg *sync.WaitGroup = new(sync.WaitGroup)
-	threadsNumbers := uint64(configuration.Threads)
+	fetchedRecords chan FetchedRecord,
+	configuration ElasticSearchConfig,
+	meta MetaDataES) {
 
-	for i := uint64(0); i < threadsNumbers; i++ {
+	var wg *sync.WaitGroup = new(sync.WaitGroup)
+
+	for i := uint8(0); i < configuration.Threads; i++ {
 		wg.Add(1)
-		go fetchGeoNames(db.New(), fetchedRecords, wg, threadsNumbers, i, configuration)
+		go processFetchedRecords(client, fetchedRecords, wg, configuration, meta)
 	}
 
 	// Don't close fetchedRecords channel before all fetch goroutines will finish
 	wg.Wait()
-
-	log.Print("Waith group for fetch finished")
-	log.Print("Total Fetched ", totalFetch.Value())
-
-	// No records to fetch, lets close channel to stop range query and send latest bulk request
-	close(fetchedRecords)
-}
 }
 
 var (
@@ -264,11 +313,11 @@ func main() {
 	command := flag.Arg(0)
 	switch command {
 	case "users":
-		go startFetchUsers(db, fetchedRecords, config.DataBase)
+		go startFetch(db, fetchedRecords, config.DataBase, command)
 		metaData = MetaDataESGeoNames{}
 		break
 	case "geonames":
-		go startFetchGeoNames(db, fetchedRecords, config.DataBase)
+		go startFetch(db, fetchedRecords, config.DataBase, command)
 		metaData = MetaDataESGeoNames{}
 		break
 	default:

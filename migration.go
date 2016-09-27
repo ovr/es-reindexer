@@ -3,13 +3,13 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	"log"
 	"strconv"
 	"sync"
-	"encoding/json"
 )
 
 func migrateGeoNames(
@@ -21,10 +21,10 @@ func migrateGeoNames(
 
 	var (
 		threadsCount = strconv.FormatUint(numberOfThread, 10)
-		threadId = strconv.FormatUint(threadNumber, 10)
-		limit = strconv.FormatUint(uint64(configuration.Limit), 10)
+		threadId     = strconv.FormatUint(threadNumber, 10)
+		limit        = strconv.FormatUint(uint64(configuration.Limit), 10)
 
-		lastId uint64 = 0
+		lastId    uint64 = 0
 		lastCount uint64
 	)
 
@@ -58,16 +58,25 @@ func migrateGeoNames(
 				panic(err)
 			}
 
-			db.Model(&row).Association("AlternativeNames").Find(&row.AlternativeNames);
+			db.Model(&row).Association("AlternativeNames").Find(&row.AlternativeNames)
 
+			updateMap := map[string]string{}
 
-			jsonResult, _ := json.Marshal(row.AlternativeNames)
-			alternatenames := string(jsonResult)
+			jsonResult, err := json.Marshal(row.AlternativeNames)
+			if err != nil {
+				panic(err)
+			}
 
-			jsonResult, _ = json.Marshal(row.GetLocalizationNames());
-			localeNames := string(jsonResult)
+			updateMap["alternatenames"] = string(jsonResult)
 
-			db.Model(&row).Where("geonameid = ?", row.Geonameid).Updates(map[string]interface{}{"alternatenames": alternatenames})
+			jsonResult, err = json.Marshal(row.GetLocalizationNames())
+			if err != nil {
+				panic(err)
+			}
+
+			updateMap["localenames"] = string(jsonResult)
+
+			db.Model(&GeoName{}).Where("geonameid = ?", row.Geonameid).Updates(updateMap)
 
 			lastId = row.GetId()
 			row.Prepare()
