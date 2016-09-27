@@ -190,7 +190,15 @@ func fetchGeoNames(
 			}
 
 			lastId = row.GetId()
+
 			row.Prepare()
+
+			res, err := json.Marshal(row.GetSearchData())
+			if err != nil {
+				panic(err)
+			}
+
+			log.Print(string(res))
 
 			channel <- row
 		}
