@@ -3,7 +3,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
@@ -192,14 +191,6 @@ func fetchGeoNames(
 			lastId = row.GetId()
 
 			row.Prepare()
-
-			res, err := json.Marshal(row.GetSearchData())
-			if err != nil {
-				panic(err)
-			}
-
-			log.Print(string(res))
-
 			channel <- row
 		}
 
@@ -230,7 +221,7 @@ func processFetchedRecords(
 			Index(meta.GetIndex()).
 			Type(meta.GetType()).
 			Id(strconv.FormatUint(record.GetId(), 10)).
-			Doc(record)
+			Doc(record.GetSearchData())
 
 		bulkRequest.Add(request)
 

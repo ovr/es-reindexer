@@ -67,6 +67,7 @@ func (this *Configuration) Init(configFile string) {
 
 type FetchedRecord interface {
 	GetId() uint64
+	GetSearchData() interface{}
 }
 
 type MetaDataES interface {

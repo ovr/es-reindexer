@@ -68,7 +68,7 @@ type GeoAlternateNamesMap map[string]string
 
 type JSONMap map[string]interface{}
 
-func (this GeoName) GetSearchData() JSONMap {
+func (this GeoName) GetSearchData() interface{} {
 	result := JSONMap{}
 
 	result["name"] = this.Name

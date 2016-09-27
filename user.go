@@ -79,6 +79,10 @@ func (this User) GetId() uint64 {
 	return this.Id
 }
 
+func (this User) GetSearchData() interface{} {
+	return this
+}
+
 func (this User) Prepare() {
 	this.SexBool = this.Sex == "female"
 
