@@ -66,6 +66,13 @@ func migrateGeoNames(
 				panic(err)
 			}
 
+			var regionId *uint64 = nil
+
+			adminCodeRow, ok := admin1Codes[row.Country+`.`+row.Admin1]
+			if ok {
+				regionId = &adminCodeRow.Geonameid
+			}
+
 			GNObjectBatchChannel <- GNObject{
 				Id:         row.GetId(),
 				Names:      string(jsonResult),
@@ -74,6 +81,7 @@ func migrateGeoNames(
 				Population: row.Population,
 				Iso:        row.Cc2,
 				Timezone:   row.Timezone,
+				RegionId:   regionId,
 			}
 
 			// GNObjectAlternateNamesChannel
@@ -160,8 +168,54 @@ func startProcessingMigration(db *gorm.DB, configuration DataBaseConfig) {
 	log.Print("Total Fetched ", totalFetch.Value())
 }
 
+func fetchAdmin1Codes(db *gorm.DB) {
+	var (
+		lastCount uint64
+		offset    uint64 = 0
+	)
+
+	for {
+		lastCount = 0
+
+		rows, err := db.Raw(`
+			SELECT *
+			FROM admin1CodesAscii
+			ORDER BY code ASC
+			LIMIT 1000 OFFSET ` + strconv.FormatUint(offset, 10)).Rows()
+
+		if err != nil {
+			panic(err)
+		}
+
+		for rows.Next() {
+			lastCount++
+
+			var row GeoAdmin1Code
+
+			err := db.ScanRows(rows, &row)
+			if err != nil {
+				panic(err)
+			}
+
+			admin1Codes[row.Code] = row
+		}
+
+		if lastCount == 0 {
+			// Nothing to fetch
+			break
+		}
+
+		offset += lastCount
+
+		rows.Close()
+	}
+}
+
+type AdminCodesMap map[string]GeoAdmin1Code
+
 var (
-	totalFetch Counter
+	totalFetch  Counter
+	admin1Codes AdminCodesMap
 
 	GNObjectBatchChannel          chan GNObject
 	GNObjectAlternateNamesChannel chan GNObjectAlternateNames
@@ -188,6 +242,9 @@ func main() {
 	db.LogMode(config.DataBase.ShowLog)
 	db.DB().SetMaxIdleConns(config.DataBase.MaxIdleConnections)
 	db.DB().SetMaxOpenConns(config.DataBase.MaxOpenConnections)
+
+	admin1Codes = AdminCodesMap{}
+	fetchAdmin1Codes(db)
 
 	GNObjectBatchChannel = make(chan GNObject, 1000000)                        // async channel
 	GNObjectAlternateNamesChannel = make(chan GNObjectAlternateNames, 1000000) // async channel

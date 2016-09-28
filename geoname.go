@@ -126,7 +126,7 @@ type GNObject struct {
 	Population uint32
 	Iso        string
 	Timezone   string
-	RegionId   uint64 `gorm:"column:region_id"`
+	RegionId   *uint64 `gorm:"column:region_id"`
 }
 
 func (GNObject) TableName() string {
@@ -140,4 +140,15 @@ type GNObjectAlternateNames struct {
 
 func (GNObjectAlternateNames) TableName() string {
 	return "gn_object_alternatenames"
+}
+
+type GeoAdmin1Code struct {
+	Code      string
+	Name      string
+	NameAscii string `gorm:"column:nameascii"`
+	Geonameid uint64 `gorm:"column:geonameid"`
+}
+
+func (GeoAdmin1Code) TableName() string {
+	return "admin1CodesAscii"
 }
