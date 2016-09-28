@@ -122,7 +122,7 @@ type GNObject struct {
 	Id         uint64 `gorm:"primary_key:true;column:id"`
 	Names      string
 	Latitude   float32
-	longitude  float32
+	Longitude  float32
 	Population uint32
 	Iso        string
 	Timezone   string
