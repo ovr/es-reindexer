@@ -56,44 +56,6 @@ type GeoName struct {
 	AlternativeNames []GeoAlternateName `gorm:"ForeignKey:Geonameid;AssociationForeignKey:Geonameid"`
 }
 
-func (GeoName) TableName() string {
-	return "geoname"
-}
-
-func (this GeoName) GetId() uint64 {
-	return this.Geonameid
-}
-
-type GeoAlternateNamesMap map[string]string
-
-type JSONMap map[string]interface{}
-
-func (this GeoName) GetSearchData() interface{} {
-	result := JSONMap{}
-
-	result["name"] = this.Name
-	result["population"] = this.Population
-	result["timezone"] = this.Timezone
-
-	var alternatenames []JSONMap
-	err := json.Unmarshal([]byte(this.Alternatenames), &alternatenames)
-	if err != nil {
-		//panic(err)
-	}
-
-	result["alternatenames"] = alternatenames
-
-	var localenames JSONMap
-	err = json.Unmarshal([]byte(this.LocaleNames), &localenames)
-	if err != nil {
-		//panic(err)
-	}
-
-	result["localenames"] = localenames
-	result["location"] = this.Location
-
-	return result
-}
 
 func (this GeoName) GetLocalizationNames() GeoAlternateNamesMap {
 	result := GeoAlternateNamesMap{}
@@ -113,9 +75,8 @@ func (this GeoName) GetLocalizationNames() GeoAlternateNamesMap {
 	return result
 }
 
-func (this GeoName) Prepare() {
-	this.Location.Lat = this.Latitude
-	this.Location.Lon = this.Longitude
+func (GeoName) TableName() string {
+	return "geoname"
 }
 
 type GNObject struct {
@@ -151,4 +112,77 @@ type GeoAdmin1Code struct {
 
 func (GeoAdmin1Code) TableName() string {
 	return "admin1CodesAscii"
+}
+
+type GNObjectAggregate struct {
+	FetchedRecord `json:"-"`
+	
+	Id         uint64 `gorm:"primary_key:true;column:id"`
+	Names      string
+	Latitude   float32
+	Longitude  float32
+	Population uint32
+	Iso        string
+	Timezone   string
+	RegionId   *uint64 `gorm:"column:region_id"`
+
+	// Virtual from Left Joins
+	Alternatenames string `gorm:"column:alternatenames" json:"alternatenames"`
+	RegionNames string `gorm:"column:region_names" json:"region_names"`
+	RegionAlternatenames string `gorm:"column:region_alternatenames" json:"region_alternatenames"`
+}
+
+func (this GNObjectAggregate) GetId() uint64 {
+	return this.Id
+}
+
+type GeoAlternateNamesMap map[string]string
+
+type JSONMap map[string]interface{}
+
+func (this GNObjectAggregate) GetSearchData() interface{} {
+	result := JSONMap{}
+
+	result["iso"] = this.Iso
+	result["population"] = this.Population
+	result["timezone"] = this.Timezone
+	result["region_id"] = this.RegionId
+	result["location"] = &JSONMap{
+		"lat": this.Latitude,
+		"lon": this.Longitude,
+	}
+
+	var alternatenames []JSONMap
+	err := json.Unmarshal([]byte(this.Alternatenames), &alternatenames)
+	if err != nil {
+		//panic(err)
+	}
+
+	result["alternatenames"] = alternatenames
+
+	var names JSONMap
+	err = json.Unmarshal([]byte(this.Names), &names)
+	if err != nil {
+		//panic(err)
+	}
+
+	result["names"] = names
+
+	var regionNames JSONMap
+	err = json.Unmarshal([]byte(this.RegionNames), &regionNames)
+	if err != nil {
+		//panic(err)
+	}
+
+	result["region_names"] = names
+
+	var regionAlternateNames JSONMap
+	err = json.Unmarshal([]byte(this.RegionAlternatenames), &regionAlternateNames)
+	if err != nil {
+		//panic(err)
+	}
+
+	result["region_alternatenames"] = regionAlternateNames
+
+	return result
 }

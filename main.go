@@ -162,17 +162,18 @@ func fetchGeoNames(
 		lastCount = 0
 
 		rows, err := db.Raw(`
-			SELECT geo.*,
-			(
-				SELECT
-				admin1.name FROM admin1CodesAscii admin1
-				WHERE admin1.code = CONCAT(geo.country, '.', geo.admin1)
-			) as region
-			FROM geoname as geo
-			WHERE geonameid > ` + strconv.FormatUint(lastId, 10) +
-			` AND geonameid % ` + threadsCount + ` = ` + threadId +
-			` ORDER BY geonameid ASC
-			LIMIT ` + limit).Rows()
+			SELECT
+			  obj.*,
+			  a1.alternatenames,
+			  region.names as region_names,
+			  a2.alternatenames as region_alternatenames
+			FROM gn_object obj
+			LEFT JOIN gn_object_alternatenames a1 ON obj.id = a1.id
+			LEFT JOIN gn_object region ON obj.region_id = region.id
+			LEFT JOIN gn_object_alternatenames a2 ON region.region_id = a2.id
+			WHERE obj.id > ` + strconv.FormatUint(lastId, 10) +
+			` AND obj.id % ` + threadsCount + ` = ` + threadId +
+			` ORDER BY obj.id ASC LIMIT ` + limit).Rows()
 
 		if err != nil {
 			panic(err)
@@ -181,7 +182,7 @@ func fetchGeoNames(
 		for rows.Next() {
 			lastCount++
 
-			var row GeoName
+			var row GNObjectAggregate
 
 			err := db.ScanRows(rows, &row)
 			if err != nil {
@@ -189,8 +190,6 @@ func fetchGeoNames(
 			}
 
 			lastId = row.GetId()
-
-			row.Prepare()
 			channel <- row
 		}
 
