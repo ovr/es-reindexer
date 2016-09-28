@@ -108,7 +108,6 @@ func processGNObjectBatchChannel(db *gorm.DB, configuration DataBaseConfig) {
 	batchCount := 0
 	trDB := db.Begin()
 
-	db.CommonDB().Prepare()
 	for record := range GNObjectBatchChannel {
 		trDB.Model(&GNObject{}).Save(record)
 
