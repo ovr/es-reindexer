@@ -56,6 +56,9 @@ type GeoName struct {
 	AlternativeNames []GeoAlternateName `gorm:"ForeignKey:Geonameid;AssociationForeignKey:Geonameid"`
 }
 
+func (this GeoName) GetId() uint64 {
+	return this.Geonameid
+}
 
 func (this GeoName) GetLocalizationNames() GeoAlternateNamesMap {
 	result := GeoAlternateNamesMap{}
