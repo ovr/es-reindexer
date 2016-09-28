@@ -40,7 +40,7 @@ type GeoName struct {
 	Admin2     string `json:"admin2"`
 	Admin3     string `json:"admin3"`
 	Admin4     string `json:"admin4"`
-	Population int32  `json:"population"`
+	Population uint32 `json:"population"`
 	Elevation  int32  `json:"elevation"`
 	Gtopo30    int32  `json:"gtopo30"`
 	Timezone   string `json:"timezone"`
@@ -90,6 +90,7 @@ func (this GeoName) GetSearchData() interface{} {
 	}
 
 	result["localenames"] = localenames
+	result["location"] = this.Location
 
 	return result
 }
@@ -115,4 +116,28 @@ func (this GeoName) GetLocalizationNames() GeoAlternateNamesMap {
 func (this GeoName) Prepare() {
 	this.Location.Lat = this.Latitude
 	this.Location.Lon = this.Longitude
+}
+
+type GNObject struct {
+	Id         uint64 `gorm:"primary_key:true;column:id"`
+	Names      string
+	Latitude   float32
+	longitude  float32
+	Population uint32
+	Iso        string
+	Timezone   string
+	RegionId   uint64 `gorm:"column:region_id"`
+}
+
+func (GNObject) TableName() string {
+	return "gn_object"
+}
+
+type GNObjectAlternateNames struct {
+	Id    uint64 `gorm:"primary_key:true;column:id"`
+	Names string `gorm:"column:alternatenames"`
+}
+
+func (GNObjectAlternateNames) TableName() string {
+	return "gn_object_alternatenames"
 }
