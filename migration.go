@@ -10,6 +10,8 @@ import (
 	"log"
 	"strconv"
 	"sync"
+	"strings"
+	"fmt"
 )
 
 func migrateGeoNames(
@@ -107,44 +109,81 @@ func migrateGeoNames(
 	log.Print("Finished fetch goroutine ", threadNumber)
 }
 
-func processGNObjectBatchChannel(db *gorm.DB, configuration DataBaseConfig) {
-	batchCount := 0
-	trDB := db.Begin()
+func processBulkInsert(db *gorm.DB, buffer [][]interface{}, tableName string)  {
+	sqlStr := "INSERT INTO " + tableName + " VALUES "
+	vals := []interface{}{}
 
-	for record := range GNObjectBatchChannel {
-		trDB.Create(record)
+	for _, row := range buffer {
+		log.Print(row)
+		q := strings.Repeat("?,", len(row))
+		q = q[0:len(q) - 1]
+
+		sqlStr += fmt.Sprintf("(%s),", q)
+		vals = append(vals, row...)
+	}
+
+	sqlStr = sqlStr[0:len(sqlStr) - 1]
+
+	commonDb := db.CommonDB()
+	stmt, err := commonDb.Prepare(sqlStr)
+	if (err != nil) {
+		panic(err)
+	}
+
+	_, execError := stmt.Exec(vals...)
+	if execError != nil {
+		panic(execError)
+	}
+}
+
+func processChannelBuffer(db *gorm.DB, buffer chan GNObject) {
+	batchCount := 0
+
+	var bulkBuffer [][]interface{}
+
+	for record := range buffer {
+		bulkBuffer = append(bulkBuffer, []interface{}{
+			record.Id,
+			record.Names,
+			record.Latitude,
+			record.Longitude,
+			record.Population,
+			record.Iso,
+			record.Timezone,
+			record.RegionId,
+		})
 
 		batchCount++
 
 		if batchCount >= 100 {
-			log.Print("Batch GNObject")
+			processBulkInsert(db, bulkBuffer, record.TableName())
 
-			trDB.Commit()
+			// clear slice
+			bulkBuffer = bulkBuffer[:0]
 
 			batchCount = 0
-			trDB = db.Begin()
 		}
 	}
 }
 
-func processGNObjectAlternateNamesChannel(db *gorm.DB, configuration DataBaseConfig) {
-	batchCount := 0
-	trDB := db.Begin()
-
-	for record := range GNObjectAlternateNamesChannel {
-		trDB.Create(record)
-
-		batchCount++
-
-		if batchCount >= 100 {
-			log.Print("Batch GNObjectAlternateNames")
-
-			trDB.Commit()
-
-			batchCount = 0
-			trDB = db.Begin()
-		}
-	}
+func processGNObjectBatchChannel(db *gorm.DB, configuration DataBaseConfig) {
+	//batchCount := 0
+	//trDB := db.Begin()
+	//
+	//for record := range GNObjectBatchChannel {
+	//	trDB.Create(record)
+	//
+	//	batchCount++
+	//
+	//	if batchCount >= 100 {
+	//		log.Print("Batch GNObject")
+	//
+	//		trDB.Commit()
+	//
+	//		batchCount = 0
+	//		trDB = db.Begin()
+	//	}
+	//}
 }
 
 func startProcessingMigration(db *gorm.DB, configuration DataBaseConfig) {
@@ -247,7 +286,7 @@ func main() {
 	go startProcessingMigration(db, config.DataBase)
 
 	go processGNObjectBatchChannel(db, config.DataBase)
-	processGNObjectAlternateNamesChannel(db, config.DataBase)
+	processChannelBuffer(db, GNObjectBatchChannel)
 
 	log.Print("Finished ")
 }
