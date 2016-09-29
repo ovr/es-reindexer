@@ -79,7 +79,7 @@ func migrateGeoNames(
 				Latitude:   row.Latitude,
 				Longitude:  row.Longitude,
 				Population: row.Population,
-				Iso:        row.Cc2,
+				Iso:        row.Country,
 				Timezone:   row.Timezone,
 				RegionId:   regionId,
 			}
