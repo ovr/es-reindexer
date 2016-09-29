@@ -32,12 +32,7 @@ func migrateGeoNames(
 		lastCount = 0
 
 		rows, err := db.Raw(`
-			SELECT geo.*,
-			(
-				SELECT
-				admin1.name FROM admin1CodesAscii admin1
-				WHERE admin1.code = CONCAT(geo.country, '.', geo.admin1)
-			) as region
+			SELECT geo.*
 			FROM geoname as geo
 			WHERE geonameid > ` + strconv.FormatUint(lastId, 10) +
 			` AND geonameid % ` + threadsCount + ` = ` + threadId +
