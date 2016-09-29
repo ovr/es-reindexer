@@ -89,7 +89,14 @@ func (GeoName) TableName() string {
 	return "geoname"
 }
 
+type GNObjectIterface interface {
+	TableName() string
+	GetValues() []interface{}
+}
+
 type GNObject struct {
+	GNObjectIterface `json:"-"`
+	
 	Id         uint64 `gorm:"primary_key:true;column:id"`
 	Names      string
 	Latitude   float32
@@ -104,9 +111,31 @@ func (GNObject) TableName() string {
 	return "gn_object"
 }
 
+func (this GNObject) GetValues() []interface{} {
+	return []interface{}{
+		this.Id,
+		this.Names,
+		this.Latitude,
+		this.Longitude,
+		this.Population,
+		this.Iso,
+		this.Timezone,
+		this.RegionId,
+	};
+}
+
 type GNObjectAlternateNames struct {
+	GNObjectIterface `json:"-"`
+
 	Id    uint64 `gorm:"primary_key:true;column:id"`
 	Names string `gorm:"column:alternatenames"`
+}
+
+func (this GNObjectAlternateNames) GetValues() []interface{} {
+	return []interface{}{
+		this.Id,
+		this.Names,
+	};
 }
 
 func (GNObjectAlternateNames) TableName() string {

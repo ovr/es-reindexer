@@ -136,22 +136,13 @@ func processBulkInsert(db *gorm.DB, buffer [][]interface{}, tableName string)  {
 	}
 }
 
-func processChannelBuffer(db *gorm.DB, buffer chan GNObject) {
+func processChannelBuffer(db *gorm.DB, buffer chan GNObjectIterface) {
 	batchCount := 0
 
 	var bulkBuffer [][]interface{}
 
 	for record := range buffer {
-		bulkBuffer = append(bulkBuffer, []interface{}{
-			record.Id,
-			record.Names,
-			record.Latitude,
-			record.Longitude,
-			record.Population,
-			record.Iso,
-			record.Timezone,
-			record.RegionId,
-		})
+		bulkBuffer = append(bulkBuffer, record.GetValues())
 
 		batchCount++
 
@@ -164,26 +155,6 @@ func processChannelBuffer(db *gorm.DB, buffer chan GNObject) {
 			batchCount = 0
 		}
 	}
-}
-
-func processGNObjectBatchChannel(db *gorm.DB, configuration DataBaseConfig) {
-	//batchCount := 0
-	//trDB := db.Begin()
-	//
-	//for record := range GNObjectBatchChannel {
-	//	trDB.Create(record)
-	//
-	//	batchCount++
-	//
-	//	if batchCount >= 100 {
-	//		log.Print("Batch GNObject")
-	//
-	//		trDB.Commit()
-	//
-	//		batchCount = 0
-	//		trDB = db.Begin()
-	//	}
-	//}
 }
 
 func startProcessingMigration(db *gorm.DB, configuration DataBaseConfig) {
@@ -251,8 +222,8 @@ var (
 	totalFetch  Counter
 	admin1Codes AdminCodesMap
 
-	GNObjectBatchChannel          chan GNObject
-	GNObjectAlternateNamesChannel chan GNObjectAlternateNames
+	GNObjectBatchChannel          chan GNObjectIterface //GNObject
+	GNObjectAlternateNamesChannel chan GNObjectIterface //GNObjectAlternateNames
 )
 
 func main() {
@@ -280,13 +251,14 @@ func main() {
 	admin1Codes = AdminCodesMap{}
 	fetchAdmin1Codes(db)
 
-	GNObjectBatchChannel = make(chan GNObject, 1000000)                        // async channel
-	GNObjectAlternateNamesChannel = make(chan GNObjectAlternateNames, 1000000) // async channel
+	GNObjectBatchChannel = make(chan GNObjectIterface, 1000000) // async channel
+	GNObjectAlternateNamesChannel = make(chan GNObjectIterface, 1000000) // async channel
 
 	go startProcessingMigration(db, config.DataBase)
 
-	go processGNObjectBatchChannel(db, config.DataBase)
-	processChannelBuffer(db, GNObjectBatchChannel)
+	go processChannelBuffer(db, GNObjectBatchChannel)
+	// dont run this as go, we to protect finish from main
+	processChannelBuffer(db, GNObjectAlternateNamesChannel)
 
 	log.Print("Finished ")
 }
