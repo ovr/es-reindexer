@@ -117,7 +117,7 @@ func processGNObjectBatchChannel(db *gorm.DB, configuration DataBaseConfig) {
 	trDB := db.Begin()
 
 	for record := range GNObjectBatchChannel {
-		trDB.Model(&GNObject{}).Save(record)
+		trDB.Create(record)
 
 		batchCount++
 
@@ -137,7 +137,7 @@ func processGNObjectAlternateNamesChannel(db *gorm.DB, configuration DataBaseCon
 	trDB := db.Begin()
 
 	for record := range GNObjectAlternateNamesChannel {
-		trDB.Model(&GNObjectAlternateNames{}).Save(record)
+		trDB.Create(record)
 
 		batchCount++
 
