@@ -121,7 +121,7 @@ func processGNObjectBatchChannel(db *gorm.DB, configuration DataBaseConfig) {
 
 		batchCount++
 
-		if batchCount > 100 {
+		if batchCount >= 100 {
 			log.Print("Batch GNObject")
 
 			trDB.Commit()
@@ -141,7 +141,7 @@ func processGNObjectAlternateNamesChannel(db *gorm.DB, configuration DataBaseCon
 
 		batchCount++
 
-		if batchCount > 100 {
+		if batchCount >= 100 {
 			log.Print("Batch GNObjectAlternateNames")
 
 			trDB.Commit()
