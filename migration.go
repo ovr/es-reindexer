@@ -85,7 +85,7 @@ func migrateGeoNames(
 			}
 
 			// GNObjectAlternateNamesChannel
-			jsonResult, err = json.Marshal(row.AlternativeNames)
+			jsonResult, err = json.Marshal(row.GetAlternativeNames())
 			if err != nil {
 				panic(err)
 			}

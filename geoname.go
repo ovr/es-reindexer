@@ -60,8 +60,15 @@ func (this GeoName) GetId() uint64 {
 	return this.Geonameid
 }
 
+func (this GeoName) GetAlternativeNames() []GeoAlternateName {
+	return append(this.AlternativeNames, GeoAlternateName{Language: "en", Name: this.Name, IsPreferredName: true})
+}
+
+
 func (this GeoName) GetLocalizationNames() GeoAlternateNamesMap {
-	result := GeoAlternateNamesMap{}
+	result := GeoAlternateNamesMap{
+		"en": this.Name,
+	}
 
 	for _, alterName := range this.AlternativeNames {
 		if alterName.Language == "link" {
