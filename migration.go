@@ -148,6 +148,7 @@ func processBulkInsert(db *gorm.DB, buffer [][]interface{}, tableName string)  {
 	if (err != nil) {
 		panic(err)
 	}
+	defer stmt.Close()
 
 	_, execError := stmt.Exec(vals...)
 	if execError != nil {
