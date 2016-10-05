@@ -34,7 +34,29 @@ func migrateGeoNames(
 		lastCount = 0
 
 		rows, err := db.Raw(`
-			SELECT geo.*
+			SELECT
+			  geo.geonameid,
+			  geo.name,
+			  geo.country,
+			  geo.fcode,
+			  geo.admin1,
+			  geo.cc2,
+			  geo.population,
+			  geo.timezone,
+			  geo.latitude,
+			  geo.longitude,
+			  (
+			    SELECT GROUP_CONCAT(
+			      CONCAT_WS(
+				',',
+				alternatename.alternateName,
+				alternatename.isoLanguage,
+				alternatename.isPreferredName
+			      ) SEPARATOR '|'
+			    )
+			    FROM alternatename
+			    WHERE alternatename.geonameid = geo.geonameid
+			  ) as alternativenames_as_string
 			FROM geoname as geo
 			WHERE geonameid > ` + strconv.FormatUint(lastId, 10) +
 			` AND geonameid % ` + threadsCount + ` = ` + threadId +
@@ -54,8 +76,6 @@ func migrateGeoNames(
 			if err != nil {
 				panic(err)
 			}
-
-			db.Model(&row).Association("AlternativeNames").Find(&row.AlternativeNames)
 
 			// GNObjectBatchChannel
 			jsonResult, err := json.Marshal(row.GetLocalizationNames())
@@ -114,7 +134,6 @@ func processBulkInsert(db *gorm.DB, buffer [][]interface{}, tableName string)  {
 	vals := []interface{}{}
 
 	for _, row := range buffer {
-		log.Print(row)
 		q := strings.Repeat("?,", len(row))
 		q = q[0:len(q) - 1]
 
@@ -260,5 +279,5 @@ func main() {
 	// dont run this as go, we to protect finish from main
 	processChannelBuffer(db, GNObjectAlternateNamesChannel)
 
-	log.Print("Finished ")
+	log.Print("Finished")
 }

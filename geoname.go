@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/json"
+	"strings"
 )
 
 type GeoAlternateName struct {
@@ -53,7 +54,8 @@ type GeoName struct {
 
 	Location Location `json:"location"`
 
-	AlternativeNames []GeoAlternateName `gorm:"ForeignKey:Geonameid;AssociationForeignKey:Geonameid"`
+	AlternativeNamesAsString string             `gorm:"column:alternativenames_as_string"`
+	AlternativeNames         []GeoAlternateName `gorm:"ForeignKey:Geonameid;AssociationForeignKey:Geonameid"`
 }
 
 func (this GeoName) GetId() uint64 {
@@ -61,9 +63,29 @@ func (this GeoName) GetId() uint64 {
 }
 
 func (this GeoName) GetAlternativeNames() []GeoAlternateName {
-	return append(this.AlternativeNames, GeoAlternateName{Language: "en", Name: this.Name, IsPreferredName: true})
-}
+	result := []GeoAlternateName{}
 
+	if this.AlternativeNamesAsString != "" {
+		languagesInfo := strings.Split(this.AlternativeNamesAsString, "|")
+		for i := 0; i < len(languagesInfo); i++ {
+			parts := strings.Split(languagesInfo[0], ",")
+
+			result = append(result, GeoAlternateName{
+				Name:            parts[0],
+				Language:        parts[1],
+				IsPreferredName: parts[2] == "1",
+			})
+		}
+	}
+
+	result = append(result, GeoAlternateName{
+		Name:            this.Name,
+		Language:        "en",
+		IsPreferredName: true,
+	})
+
+	return result
+}
 
 func (this GeoName) GetLocalizationNames() GeoAlternateNamesMap {
 	result := GeoAlternateNamesMap{
@@ -96,7 +118,7 @@ type GNObjectIterface interface {
 
 type GNObject struct {
 	GNObjectIterface `json:"-"`
-	
+
 	Id         uint64 `gorm:"primary_key:true;column:id"`
 	Names      string
 	Latitude   float32
@@ -121,7 +143,7 @@ func (this GNObject) GetValues() []interface{} {
 		this.Iso,
 		this.Timezone,
 		this.RegionId,
-	};
+	}
 }
 
 type GNObjectAlternateNames struct {
@@ -135,7 +157,7 @@ func (this GNObjectAlternateNames) GetValues() []interface{} {
 	return []interface{}{
 		this.Id,
 		this.Names,
-	};
+	}
 }
 
 func (GNObjectAlternateNames) TableName() string {
@@ -155,7 +177,7 @@ func (GeoAdmin1Code) TableName() string {
 
 type GNObjectAggregate struct {
 	FetchedRecord `json:"-"`
-	
+
 	Id         uint64 `gorm:"primary_key:true;column:id"`
 	Names      string
 	Latitude   float32
@@ -166,8 +188,8 @@ type GNObjectAggregate struct {
 	RegionId   *uint64 `gorm:"column:region_id"`
 
 	// Virtual from Left Joins
-	Alternatenames string `gorm:"column:alternatenames" json:"alternatenames"`
-	RegionNames string `gorm:"column:region_names" json:"region_names"`
+	Alternatenames       string `gorm:"column:alternatenames" json:"alternatenames"`
+	RegionNames          string `gorm:"column:region_names" json:"region_names"`
 	RegionAlternatenames string `gorm:"column:region_alternatenames" json:"region_alternatenames"`
 }
 
