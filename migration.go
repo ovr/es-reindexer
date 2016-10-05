@@ -101,13 +101,13 @@ func migrateGeoNames(
 				RegionId:   regionId,
 			}
 
-			// GNObjectAlternateNamesChannel
+			// GNObjectAlternateNamesBatchChannel
 			jsonResult, err = json.Marshal(row.GetAlternativeNames())
 			if err != nil {
 				panic(err)
 			}
 
-			GNObjectAlternateNamesChannel <- GNObjectAlternateNames{
+			GNObjectAlternateNamesBatchChannel <- GNObjectAlternateNames{
 				Id:    row.GetId(),
 				Names: string(jsonResult),
 			}
@@ -157,11 +157,13 @@ func processBulkInsert(db *gorm.DB, buffer [][]interface{}, tableName string)  {
 }
 
 func processChannelBuffer(db *gorm.DB, buffer chan GNObjectIterface) {
-	batchCount := 0
+	var (
+		batchCount uint16 = 0
+		record  GNObjectIterface
+		bulkBuffer [][]interface{}
+	)
 
-	var bulkBuffer [][]interface{}
-
-	for record := range buffer {
+	for record = range buffer {
 		bulkBuffer = append(bulkBuffer, record.GetValues())
 
 		batchCount++
@@ -171,9 +173,13 @@ func processChannelBuffer(db *gorm.DB, buffer chan GNObjectIterface) {
 
 			// clear slice
 			bulkBuffer = bulkBuffer[:0]
-
 			batchCount = 0
 		}
+	}
+
+	// Lets process latest records from bulkBuffer
+	if batchCount > 0 {
+		processBulkInsert(db, bulkBuffer, record.TableName())
 	}
 }
 
@@ -188,6 +194,9 @@ func startProcessingMigration(db *gorm.DB, configuration DataBaseConfig) {
 
 	// Don't close fetchedRecords channel before all fetch goroutines will finish
 	wg.Wait()
+
+	close(GNObjectBatchChannel);
+	close(GNObjectAlternateNamesBatchChannel);
 
 	log.Print("Waith group for fetch finished")
 	log.Print("Total Fetched ", totalFetch.Value())
@@ -243,7 +252,7 @@ var (
 	admin1Codes AdminCodesMap
 
 	GNObjectBatchChannel          chan GNObjectIterface //GNObject
-	GNObjectAlternateNamesChannel chan GNObjectIterface //GNObjectAlternateNames
+	GNObjectAlternateNamesBatchChannel chan GNObjectIterface //GNObjectAlternateNames
 )
 
 func main() {
@@ -272,13 +281,13 @@ func main() {
 	fetchAdmin1Codes(db)
 
 	GNObjectBatchChannel = make(chan GNObjectIterface, 1000000) // async channel
-	GNObjectAlternateNamesChannel = make(chan GNObjectIterface, 1000000) // async channel
+	GNObjectAlternateNamesBatchChannel = make(chan GNObjectIterface, 1000000) // async channel
 
 	go startProcessingMigration(db, config.DataBase)
 
 	go processChannelBuffer(db, GNObjectBatchChannel)
 	// dont run this as go, we to protect finish from main
-	processChannelBuffer(db, GNObjectAlternateNamesChannel)
+	processChannelBuffer(db, GNObjectAlternateNamesBatchChannel)
 
 	log.Print("Finished")
 }
