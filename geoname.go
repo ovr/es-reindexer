@@ -62,29 +62,38 @@ func (this GeoName) GetId() uint64 {
 	return this.Geonameid
 }
 
-func (this GeoName) GetAlternativeNames() []GeoAlternateName {
-	result := []GeoAlternateName{}
+func (this *GeoName) prepare() {
+	this.AlternativeNames = []GeoAlternateName{}
 
 	if this.AlternativeNamesAsString != "" {
 		languagesInfo := strings.Split(this.AlternativeNamesAsString, "|")
 		for i := 0; i < len(languagesInfo); i++ {
-			parts := strings.Split(languagesInfo[0], ",")
+			parts := strings.Split(languagesInfo[i], ",")
+			partsLen := len(parts)
 
-			result = append(result, GeoAlternateName{
+			language := ""
+			if partsLen >= 2 {
+				language = parts[1]
+			}
+
+			isPreferredName := false
+			if partsLen == 3 {
+				isPreferredName = parts[2] == "1"
+			}
+
+			this.AlternativeNames = append(this.AlternativeNames, GeoAlternateName{
 				Name:            parts[0],
-				Language:        parts[1],
-				IsPreferredName: parts[2] == "1",
+				Language:        language,
+				IsPreferredName: isPreferredName,
 			})
 		}
 	}
 
-	result = append(result, GeoAlternateName{
+	this.AlternativeNames = append(this.AlternativeNames, GeoAlternateName{
 		Name:            this.Name,
 		Language:        "en",
 		IsPreferredName: true,
 	})
-
-	return result
 }
 
 func (this GeoName) GetLocalizationNames() GeoAlternateNamesMap {

@@ -5,13 +5,13 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	"log"
 	"strconv"
-	"sync"
 	"strings"
-	"fmt"
+	"sync"
 )
 
 func migrateGeoNames(
@@ -77,6 +77,8 @@ func migrateGeoNames(
 				panic(err)
 			}
 
+			row.prepare()
+
 			// GNObjectBatchChannel
 			jsonResult, err := json.Marshal(row.GetLocalizationNames())
 			if err != nil {
@@ -102,7 +104,7 @@ func migrateGeoNames(
 			}
 
 			// GNObjectAlternateNamesBatchChannel
-			jsonResult, err = json.Marshal(row.GetAlternativeNames())
+			jsonResult, err = json.Marshal(row.AlternativeNames)
 			if err != nil {
 				panic(err)
 			}
@@ -129,23 +131,23 @@ func migrateGeoNames(
 	log.Print("Finished fetch goroutine ", threadNumber)
 }
 
-func processBulkInsert(db *gorm.DB, buffer [][]interface{}, tableName string)  {
+func processBulkInsert(db *gorm.DB, buffer [][]interface{}, tableName string) {
 	sqlStr := "INSERT INTO " + tableName + " VALUES "
 	vals := []interface{}{}
 
 	for _, row := range buffer {
 		q := strings.Repeat("?,", len(row))
-		q = q[0:len(q) - 1]
+		q = q[0 : len(q)-1]
 
 		sqlStr += fmt.Sprintf("(%s),", q)
 		vals = append(vals, row...)
 	}
 
-	sqlStr = sqlStr[0:len(sqlStr) - 1]
+	sqlStr = sqlStr[0 : len(sqlStr)-1]
 
 	commonDb := db.CommonDB()
 	stmt, err := commonDb.Prepare(sqlStr)
-	if (err != nil) {
+	if err != nil {
 		panic(err)
 	}
 	defer stmt.Close()
@@ -159,7 +161,7 @@ func processBulkInsert(db *gorm.DB, buffer [][]interface{}, tableName string)  {
 func processChannelBuffer(db *gorm.DB, buffer chan GNObjectIterface) {
 	var (
 		batchCount uint16 = 0
-		record  GNObjectIterface
+		record     GNObjectIterface
 		bulkBuffer [][]interface{}
 	)
 
@@ -195,8 +197,8 @@ func startProcessingMigration(db *gorm.DB, configuration DataBaseConfig) {
 	// Don't close fetchedRecords channel before all fetch goroutines will finish
 	wg.Wait()
 
-	close(GNObjectBatchChannel);
-	close(GNObjectAlternateNamesBatchChannel);
+	close(GNObjectBatchChannel)
+	close(GNObjectAlternateNamesBatchChannel)
 
 	log.Print("Waith group for fetch finished")
 	log.Print("Total Fetched ", totalFetch.Value())
@@ -251,7 +253,7 @@ var (
 	totalFetch  Counter
 	admin1Codes AdminCodesMap
 
-	GNObjectBatchChannel          chan GNObjectIterface //GNObject
+	GNObjectBatchChannel               chan GNObjectIterface //GNObject
 	GNObjectAlternateNamesBatchChannel chan GNObjectIterface //GNObjectAlternateNames
 )
 
@@ -280,7 +282,7 @@ func main() {
 	admin1Codes = AdminCodesMap{}
 	fetchAdmin1Codes(db)
 
-	GNObjectBatchChannel = make(chan GNObjectIterface, 1000000) // async channel
+	GNObjectBatchChannel = make(chan GNObjectIterface, 1000000)               // async channel
 	GNObjectAlternateNamesBatchChannel = make(chan GNObjectIterface, 1000000) // async channel
 
 	go startProcessingMigration(db, config.DataBase)
