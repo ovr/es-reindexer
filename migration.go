@@ -55,7 +55,9 @@ func migrateGeoNames(
 			      ) SEPARATOR '|'
 			    )
 			    FROM alternatename
-			    WHERE alternatename.geonameid = geo.geonameid
+			    WHERE
+			    	alternatename.geonameid = geo.geonameid AND
+			    	alternatename.isoLanguage NOT IN ("link", "iata")
 			  ) as alternativenames_as_string
 			FROM geoname as geo
 			WHERE geonameid > ` + strconv.FormatUint(lastId, 10) +

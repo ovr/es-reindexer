@@ -96,16 +96,10 @@ func (this *GeoName) prepare() {
 	})
 }
 
-func (this GeoName) GetLocalizationNames() GeoAlternateNamesMap {
-	result := GeoAlternateNamesMap{
-		"en": this.Name,
-	}
+func (this GeoName) GetLocalizationNames() JSONMap {
+	result := JSONMap{}
 
 	for _, alterName := range this.AlternativeNames {
-		if alterName.Language == "link" {
-			continue
-		}
-
 		if alterName.Language == "" {
 			continue
 		}
@@ -205,8 +199,6 @@ type GNObjectAggregate struct {
 func (this GNObjectAggregate) GetId() uint64 {
 	return this.Id
 }
-
-type GeoAlternateNamesMap map[string]string
 
 type JSONMap map[string]interface{}
 
