@@ -89,7 +89,7 @@ func (this User) Prepare() {
 	if this.Learninfo != "" {
 		languagesInfo := strings.Split(this.Learninfo, ",")
 		for i := 0; i < len(languagesInfo); i++ {
-			parts := strings.Split(languagesInfo[0], "|")
+			parts := strings.Split(languagesInfo[i], "|")
 
 			level, err := strconv.ParseUint(parts[1], 10, 8)
 			if err != nil {
@@ -103,7 +103,7 @@ func (this User) Prepare() {
 	if this.Knowninfo != "" {
 		languagesInfo := strings.Split(this.Knowninfo, ",")
 		for i := 0; i < len(languagesInfo); i++ {
-			parts := strings.Split(languagesInfo[0], "|")
+			parts := strings.Split(languagesInfo[i], "|")
 
 			level, err := strconv.ParseUint(parts[1], 10, 8)
 			if err != nil {
