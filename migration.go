@@ -160,7 +160,7 @@ func processBulkInsert(db *gorm.DB, buffer [][]interface{}, tableName string) {
 	}
 }
 
-func processChannelBuffer(db *gorm.DB, buffer chan GNObjectIterface) {
+func processChannelBuffer(db *gorm.DB, buffer chan GNObjectIterface, wg *sync.WaitGroup) {
 	var (
 		batchCount uint16 = 0
 		record     GNObjectIterface
@@ -185,6 +185,8 @@ func processChannelBuffer(db *gorm.DB, buffer chan GNObjectIterface) {
 	if batchCount > 0 {
 		processBulkInsert(db, bulkBuffer, record.TableName())
 	}
+
+	wg.Done()
 }
 
 func startProcessingMigration(db *gorm.DB, configuration DataBaseConfig) {
@@ -289,9 +291,15 @@ func main() {
 
 	go startProcessingMigration(db, config.DataBase)
 
-	go processChannelBuffer(db, GNObjectBatchChannel)
-	// dont run this as go, we to protect finish from main
-	processChannelBuffer(db, GNObjectAlternateNamesBatchChannel)
+
+	var wgProcess sync.WaitGroup;
+
+	wgProcess.Add(2);
+
+	go processChannelBuffer(db, GNObjectBatchChannel, &wgProcess)
+	go processChannelBuffer(db, GNObjectAlternateNamesBatchChannel, &wgProcess)
+
+	wgProcess.Wait()
 
 	log.Print("Finished")
 }
