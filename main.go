@@ -312,7 +312,7 @@ func main() {
 	switch command {
 	case "users":
 		go startFetch(db, fetchedRecords, config.DataBase, command)
-		metaData = MetaDataESGeoNames{}
+		metaData = MetaDataESUsers{}
 		break
 	case "geonames":
 		go startFetch(db, fetchedRecords, config.DataBase, command)
