@@ -39,7 +39,7 @@ type User struct {
 	Username      string `json:"username"`
 	Main_photo_id string `json:"main_photo_id"`
 	Photo_exists  bool   `json:"photo_exists"`
-	Main_thumb    string `json:"photo_exists"`
+	Main_thumb    string `json:"main_thumb"`
 	Cont          string `json:"continent"`
 	Sex           string `json:"sex"`
 	SexBool       bool   `json:"sex_bool"`
