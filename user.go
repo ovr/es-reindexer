@@ -46,6 +46,7 @@ type User struct {
 	Tz            string `json:"tz"`
 	Сity          string `json:"city"`
 	Country       string `json:"country"`
+	Iso2          string `json:"iso2"`
 
 	Lfor_email    bool `json:"lfor_email"`
 	Lfor_flirt    bool `json:"lfor_flirt"`
@@ -54,21 +55,21 @@ type User struct {
 	Lfor_relation bool `json:"lfor_relation"`
 	Lfor_snail    bool `json:"lfor_snail"`
 
-	Description string `json:"description"`
-	Books       string `json:"books"`
-	Hobbies     string `json:"hobbies"`
-	Movies      string `json:"movies"`
-	Requests    string `json:"requests"`
-	Music       string `json:"music"`
-	Quotes      string `json:"quotes"`
-	Tv          string `json:"tv"`
-	Langex_desc string `json:"langex_desc"`
+	Description   string `json:"description"`
+	Books         string `json:"books"`
+	Hobbies       string `json:"hobbies"`
+	Movies        string `json:"movies"`
+	Requests      string `json:"requests"`
+	Music         string `json:"music"`
+	Quotes        string `json:"quotes"`
+	Tv            string `json:"tv"`
+	Langex_desc   string `json:"langex_desc"`
 
-	Learninfo string `json:"-"`
-	Knowninfo string `json:"-"`
+	Learninfo     string `json:"-"`
+	Knowninfo     string `json:"-"`
 
-	Known []Known `json:"known"`
-	Learn []Learn `json:"learn"`
+	Known         []Known `json:"known"`
+	Learn         []Learn `json:"learn"`
 }
 
 func (User) TableName() string {

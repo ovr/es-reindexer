@@ -44,6 +44,7 @@ func fetchUsers(
 				u.tz,
 				u.city,
 				u.country,
+				u.iso2,
 				u.website,
 				u.main_photo_id,
 				u.photo_exists,
