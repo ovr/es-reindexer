@@ -8,7 +8,7 @@ import (
 )
 
 type Known struct {
-	UserId uint64
+	UserId uint64 `json:"-"`
 	Level  uint8  `json:"level"`
 	Lang   string `json:"lang"`
 }
@@ -18,7 +18,7 @@ func (Known) TableName() string {
 }
 
 type Learn struct {
-	UserId uint64
+	UserId uint64 `json:"-"`
 	Level  uint8  `json:"level"`
 	Lang   string `json:"lang"`
 }
