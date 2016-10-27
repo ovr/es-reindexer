@@ -44,7 +44,7 @@ type User struct {
 	Sex           string `json:"sex"`
 	SexBool       bool   `json:"sex_bool"`
 	Tz            string `json:"tz"`
-	Сity          string `json:"city"`
+	City          string `json:"city"`
 	Country       string `json:"country"`
 	Iso2          string `json:"iso2"`
 
@@ -84,7 +84,7 @@ func (this User) GetSearchData() interface{} {
 	return this
 }
 
-func (this User) Prepare() {
+func (this *User) Prepare() {
 	this.SexBool = this.Sex == "female"
 
 	if this.Learninfo != "" {
