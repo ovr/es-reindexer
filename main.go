@@ -81,7 +81,7 @@ func fetchUsers(
 	for {
 		lastCount = 0
 
-		condition := `u.id > ` + strconv.FormatUint(lastId, 10) + ` AND u.id % ` + threadsCount + ` = ` + threadId + ` AND `
+		condition := `u.id > ` + strconv.FormatUint(lastId, 10) + ` AND u.id % ` + threadsCount + ` = ` + threadId + ` AND `;
 		rows, err := db.Raw(createSelectUsersQuery("id ASC", limit, condition)).Rows()
 
 		if err != nil {
@@ -161,16 +161,16 @@ func startFetchDelta(
 	}
 
 	var (
-		limit = strconv.FormatUint(uint64(configuration.Limit), 10)
+		limit        = strconv.FormatUint(uint64(configuration.Limit), 10)
 
-		lastCount  uint64
+		lastCount uint64
 		totalCount uint64 = 0
 	)
 
 	for {
 		lastCount = 0
 
-		rows, err := db.Raw(createSelectUsersQuery(field+" DESC", limit, "")).Rows()
+		rows, err := db.Raw(createSelectUsersQuery(field + " DESC", limit, "")).Rows()
 		if err != nil {
 			panic(err)
 		}
@@ -197,10 +197,10 @@ func startFetchDelta(
 		totalFetch.Add(lastCount)
 		rows.Close()
 
-		totalCount += lastCount
+		totalCount += lastCount;
 		if totalCount >= maxTotalFetch {
 			// maxTotalFetch reached, lets exit from fetch
-			break
+			break;
 		}
 	}
 }
@@ -342,8 +342,19 @@ var (
 )
 
 func main() {
-	var configFile string
+	var (
+		configFile string
+		field string
+		maxTotalFetch uint64
+	)
+
+	// I cannot define flags parsing inside command with standart library, this will cause a problem
+	// flag provided but not defined: -total or not parsed
+	// @todo Maybe better CLI library?
 	flag.StringVar(&configFile, "config", "", "Config filepath")
+	flag.StringVar(&field, "field", "signup", "What field will be used on delta sort")
+	flag.Uint64Var(&maxTotalFetch, "total", 1000, "How many records we will fetch before exit")
+
 	flag.Parse()
 
 	if configFile == "" {
@@ -388,14 +399,6 @@ func main() {
 			os.Exit(1)
 			break
 		}
-
-		var field string
-		flag.StringVar(&field, "field", "signup", "What field will be used on delta sort")
-
-		var maxTotalFetch uint64
-		flag.Uint64Var(&maxTotalFetch, "total", 1000, "How many records we will fetch before exit")
-
-		flag.Parse()
 
 		if field != "signup" && field != "last_login" {
 			panic("Sort field must be [signup, last_login]")
