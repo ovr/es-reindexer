@@ -13,6 +13,54 @@ import (
 	"sync"
 )
 
+func createSelectUsersQuery(order string, limit string, condition string) string {
+	return `
+	SELECT
+		u.id,
+		u.name,
+		u.username,
+		u.last_login,
+		u.modified,
+		u.sex,
+		u.tz,
+		u.city,
+		u.country,
+		u.iso2,
+		u.website,
+		u.main_photo_id,
+		u.photo_exists,
+		u.main_thumb,
+		u.cont,
+		u.age,
+		u.birth,
+		u.lfor_email,
+		u.lfor_flirt,
+		u.lfor_friend,
+		u.lfor_langex,
+		u.lfor_relation,
+		u.lfor_snail,
+		pt.description,
+		pt.books,
+		pt.hobbies,
+		pt.movies,
+		pt.requests,
+		pt.music,
+		pt.quotes,
+		pt.tv,
+		pt.langex_desc,
+		(SELECT GROUP_CONCAT(CONCAT_WS('|', known.lang, known.level) SEPARATOR ',')
+		FROM user_langs known WHERE known.user_id = u.id) as knowninfo,
+		(SELECT GROUP_CONCAT(CONCAT_WS('|', learn.lang, learn.level) SEPARATOR ',')
+		FROM user_langs_learn learn WHERE learn.user_id = u.id) as learninfo
+	FROM users u
+	LEFT JOIN profiles_text pt ON u.id = pt.id
+	WHERE ` + condition + `
+	activated = 1
+	AND searchable = 1
+	ORDER BY ` + order + `
+	LIMIT ` + limit
+}
+
 func fetchUsers(
 	db *gorm.DB,
 	users chan FetchedRecord,
@@ -33,50 +81,8 @@ func fetchUsers(
 	for {
 		lastCount = 0
 
-		rows, err := db.Raw(`
-			SELECT
-				u.id,
-				u.name,
-				u.username,
-				u.last_login,
-				u.modified,
-				u.sex,
-				u.tz,
-				u.city,
-				u.country,
-				u.iso2,
-				u.website,
-				u.main_photo_id,
-				u.photo_exists,
-				u.main_thumb,
-				u.cont,
-				u.age,
-				u.birth,
-				u.lfor_email,
-				u.lfor_flirt,
-				u.lfor_friend,
-				u.lfor_langex,
-				u.lfor_relation,
-				u.lfor_snail,
-				pt.description,
-				pt.books,
-				pt.hobbies,
-				pt.movies,
-				pt.requests,
-				pt.music,
-				pt.quotes,
-				pt.tv,
-				pt.langex_desc,
-				(SELECT GROUP_CONCAT(CONCAT_WS('|', known.lang, known.level) SEPARATOR ',')
-				FROM user_langs known WHERE known.user_id = u.id) as knowninfo,
-				(SELECT GROUP_CONCAT(CONCAT_WS('|', learn.lang, learn.level) SEPARATOR ',')
-				FROM user_langs_learn learn WHERE learn.user_id = u.id) as learninfo
-			FROM users u
-			LEFT JOIN profiles_text pt ON u.id = pt.id
-			WHERE u.id > ` + strconv.FormatUint(lastId, 10) +
-			` AND u.id % ` + threadsCount + ` = ` + threadId +
-			` AND activated = 1 AND searchable = 1 ORDER BY id ASC
-			LIMIT ` + limit).Rows()
+		condition := `u.id > ` + strconv.FormatUint(lastId, 10) + ` AND u.id % ` + threadsCount + ` = ` + threadId + ` AND `
+		rows, err := db.Raw(createSelectUsersQuery("id ASC", limit, condition)).Rows()
 
 		if err != nil {
 			panic(err)
@@ -140,6 +146,63 @@ func startFetch(db *gorm.DB, users chan FetchedRecord, configuration DataBaseCon
 
 	// No users, lets close channel to stop range query and send latest bulk request
 	close(users)
+}
+
+func startFetchDelta(
+	db *gorm.DB,
+	users chan FetchedRecord,
+	configuration DataBaseConfig,
+	model string,
+	field string,
+	maxTotalFetch uint64) {
+
+	if model != "users" {
+		panic("Model is not supported, only user supported now")
+	}
+
+	var (
+		limit = strconv.FormatUint(uint64(configuration.Limit), 10)
+
+		lastCount  uint64
+		totalCount uint64 = 0
+	)
+
+	for {
+		lastCount = 0
+
+		rows, err := db.Raw(createSelectUsersQuery(field+" DESC", limit, "")).Rows()
+		if err != nil {
+			panic(err)
+		}
+
+		for rows.Next() {
+			lastCount++
+
+			var user User
+
+			err := db.ScanRows(rows, &user)
+			if err != nil {
+				panic(err)
+			}
+
+			user.Prepare()
+			users <- user
+		}
+
+		if lastCount == 0 {
+			// Nothing to fetch
+			break
+		}
+
+		totalFetch.Add(lastCount)
+		rows.Close()
+
+		totalCount += lastCount
+		if totalCount >= maxTotalFetch {
+			// maxTotalFetch reached, lets exit from fetch
+			break
+		}
+	}
 }
 
 func fetchGeoNames(
@@ -311,6 +374,42 @@ func main() {
 
 	command := flag.Arg(0)
 	switch command {
+	case "delta":
+		model := flag.Arg(1)
+		switch model {
+		case "users":
+			metaData = MetaDataESUsers{}
+			break
+		case "geonames":
+			metaData = MetaDataESGeoNames{}
+			break
+		default:
+			log.Print("Unknown model, available models: [users, geonames]")
+			os.Exit(1)
+			break
+		}
+
+		var field string
+		flag.StringVar(&field, "field", "signup", "What field will be used on delta sort")
+
+		var maxTotalFetch uint64
+		flag.Uint64Var(&maxTotalFetch, "total", 1000, "How many records we will fetch before exit")
+
+		flag.Parse()
+
+		if field != "signup" && field != "last_login" {
+			panic("Sort field must be [signup, last_login]")
+		}
+
+		if maxTotalFetch < 100 || maxTotalFetch > 100000 {
+			panic("Total must be 100 < x < 100k")
+		}
+
+		log.Print("Sort field ", field)
+		log.Print("Max total fetch ", maxTotalFetch)
+
+		go startFetchDelta(db, fetchedRecords, config.DataBase, model, field, maxTotalFetch)
+		break
 	case "users":
 		go startFetch(db, fetchedRecords, config.DataBase, command)
 		metaData = MetaDataESUsers{}
