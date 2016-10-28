@@ -203,6 +203,9 @@ func startFetchDelta(
 			break;
 		}
 	}
+
+	// No users, lets close channel to stop range query and send latest bulk request
+	close(users)
 }
 
 func fetchGeoNames(
