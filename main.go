@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"runtime"
 )
 
 func createSelectUsersQuery(order string, limit string, condition string) string {
@@ -275,11 +276,13 @@ func fetchGeoNames(
 }
 
 func processFetchedRecords(
-	client *elastic.Client,
-	fetchedRecords chan FetchedRecord,
-	wg *sync.WaitGroup,
-	configuration ElasticSearchConfig,
-	meta MetaDataES) {
+client *elastic.Client,
+fetchedRecords chan FetchedRecord,
+wg *sync.WaitGroup,
+configuration ElasticSearchConfig,
+meta MetaDataES) {
+
+	var memStats runtime.MemStats
 	bulkRequest := client.Bulk()
 
 	for record := range fetchedRecords {
@@ -294,11 +297,14 @@ func processFetchedRecords(
 		if bulkRequest.NumberOfActions() >= int(configuration.Limit) {
 			totalSend.Add(uint64(bulkRequest.NumberOfActions()))
 
+			runtime.ReadMemStats(&memStats)
 			log.Print(
 				"[ES] Bulk insert ", bulkRequest.NumberOfActions(),
 				" buffer ", len(fetchedRecords),
 				" fetch ", totalFetch.Value(),
-				" send ", totalSend.Value())
+				" send ", totalSend.Value(),
+				" alloc ", memStats.Alloc / 1024 / 1024, "mb",
+				" HeapObjects ", memStats.HeapObjects)
 
 			_, err := bulkRequest.Do()
 			if err != nil {
