@@ -236,7 +236,7 @@ func (this GNObjectAggregate) GetSearchData() interface{} {
 		//panic(err)
 	}
 
-	result["region_names"] = names
+	result["region_names"] = regionNames
 
 	var regionAlternateNames []JSONMap
 	err = json.Unmarshal([]byte(this.RegionAlternatenames), &regionAlternateNames)
