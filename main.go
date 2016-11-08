@@ -241,7 +241,7 @@ func fetchGeoNames(
 			JOIN gn_object_alternatenames a2 ON region.id = a2.id
 			WHERE obj.id > ` + strconv.FormatUint(lastId, 10) +
 			` AND obj.id % ` + threadsCount + ` = ` + threadId +
-			` ORDER BY obj.id ASC LIMIT ` + limit).Rows()
+			` AND obj.region_id IS NOT NULL ORDER BY obj.id ASC LIMIT ` + limit).Rows()
 
 		if err != nil {
 			panic(err)
