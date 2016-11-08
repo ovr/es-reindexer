@@ -38,6 +38,7 @@ func migrateGeoNames(
 			  geo.geonameid,
 			  geo.name,
 			  geo.country,
+			  geo.fclass,
 			  geo.fcode,
 			  geo.admin1,
 			  geo.cc2,
@@ -89,9 +90,12 @@ func migrateGeoNames(
 
 			var regionId *uint64 = nil
 
-			adminCodeRow, ok := admin1Codes[row.Country+`.`+row.Admin1]
-			if ok {
-				regionId = &adminCodeRow.Geonameid
+			// A: country, state, region,..., it cannot have region_id
+			if (row.Fclass != "A") {
+				adminCodeRow, ok := admin1Codes[row.Country+`.`+row.Admin1]
+				if ok {
+					regionId = &adminCodeRow.Geonameid
+				}
 			}
 
 			GNObjectBatchChannel <- GNObject{
