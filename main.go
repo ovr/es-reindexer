@@ -236,9 +236,9 @@ func fetchGeoNames(
 			  region.names as region_names,
 			  a2.alternatenames as region_alternatenames
 			FROM gn_object obj
-			LEFT JOIN gn_object_alternatenames a1 ON obj.id = a1.id
-			LEFT JOIN gn_object region ON obj.region_id = region.id
-			LEFT JOIN gn_object_alternatenames a2 ON region.region_id = a2.id
+			JOIN gn_object_alternatenames a1 ON obj.id = a1.id
+			JOIN gn_object region ON obj.region_id = region.id
+			JOIN gn_object_alternatenames a2 ON region.id = a2.id
 			WHERE obj.id > ` + strconv.FormatUint(lastId, 10) +
 			` AND obj.id % ` + threadsCount + ` = ` + threadId +
 			` ORDER BY obj.id ASC LIMIT ` + limit).Rows()
