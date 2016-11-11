@@ -191,13 +191,27 @@ type GNObjectAggregate struct {
 	RegionId   *uint64 `gorm:"column:region_id"`
 
 	// Virtual from Left Joins
-	Alternatenames       string `gorm:"column:alternatenames" json:"alternatenames"`
-	RegionNames          string `gorm:"column:region_names" json:"region_names"`
-	RegionAlternatenames string `gorm:"column:region_alternatenames" json:"region_alternatenames"`
+	Alternatenames string `gorm:"column:alternatenames" json:"alternatenames"`
+}
+
+func (GNObjectAggregate) GetIndex() string {
+	return "geonames"
+}
+
+func (this GNObjectAggregate) GetType() string {
+	if this.RegionId != nil {
+		return "city"
+	}
+
+	return "region"
 }
 
 func (this GNObjectAggregate) GetId() uint64 {
 	return this.Id
+}
+
+func (this GNObjectAggregate) GetParent() *uint64 {
+	return this.RegionId
 }
 
 type JSONMap map[string]interface{}
@@ -229,22 +243,6 @@ func (this GNObjectAggregate) GetSearchData() interface{} {
 	}
 
 	result["names"] = names
-
-	var regionNames JSONMap
-	err = json.Unmarshal([]byte(this.RegionNames), &regionNames)
-	if err != nil {
-		//panic(err)
-	}
-
-	result["region_names"] = regionNames
-
-	var regionAlternateNames []JSONMap
-	err = json.Unmarshal([]byte(this.RegionAlternatenames), &regionAlternateNames)
-	if err != nil {
-		//panic(err)
-	}
-
-	result["region_alternatenames"] = regionAlternateNames
 
 	return result
 }

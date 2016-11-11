@@ -9,9 +9,9 @@ import (
 	"gopkg.in/olivere/elastic.v3"
 	"log"
 	"os"
+	"runtime"
 	"strconv"
 	"sync"
-	"runtime"
 )
 
 func createSelectUsersQuery(order string, limit string, condition string) string {
@@ -82,7 +82,7 @@ func fetchUsers(
 	for {
 		lastCount = 0
 
-		condition := `u.id > ` + strconv.FormatUint(lastId, 10) + ` AND u.id % ` + threadsCount + ` = ` + threadId + ` AND `;
+		condition := `u.id > ` + strconv.FormatUint(lastId, 10) + ` AND u.id % ` + threadsCount + ` = ` + threadId + ` AND `
 		rows, err := db.Raw(createSelectUsersQuery("id ASC", limit, condition)).Rows()
 
 		if err != nil {
@@ -162,16 +162,16 @@ func startFetchDelta(
 	}
 
 	var (
-		limit        = strconv.FormatUint(uint64(configuration.Limit), 10)
+		limit = strconv.FormatUint(uint64(configuration.Limit), 10)
 
-		lastCount uint64
+		lastCount  uint64
 		totalCount uint64 = 0
 	)
 
 	for {
 		lastCount = 0
 
-		rows, err := db.Raw(createSelectUsersQuery(field + " DESC", limit, "")).Rows()
+		rows, err := db.Raw(createSelectUsersQuery(field+" DESC", limit, "")).Rows()
 		if err != nil {
 			panic(err)
 		}
@@ -198,10 +198,10 @@ func startFetchDelta(
 		totalFetch.Add(lastCount)
 		rows.Close()
 
-		totalCount += lastCount;
+		totalCount += lastCount
 		if totalCount >= maxTotalFetch {
 			// maxTotalFetch reached, lets exit from fetch
-			break;
+			break
 		}
 	}
 
@@ -232,16 +232,12 @@ func fetchGeoNames(
 		rows, err := db.Raw(`
 			SELECT
 			  obj.*,
-			  a1.alternatenames,
-			  region.names as region_names,
-			  a2.alternatenames as region_alternatenames
+			  a1.alternatenames
 			FROM gn_object obj
 			JOIN gn_object_alternatenames a1 ON obj.id = a1.id
-			JOIN gn_object region ON obj.region_id = region.id
-			JOIN gn_object_alternatenames a2 ON region.id = a2.id
 			WHERE obj.id > ` + strconv.FormatUint(lastId, 10) +
 			` AND obj.id % ` + threadsCount + ` = ` + threadId +
-			` AND obj.region_id IS NOT NULL ORDER BY obj.id ASC LIMIT ` + limit).Rows()
+			` ORDER BY obj.id ASC LIMIT ` + limit).Rows()
 
 		if err != nil {
 			panic(err)
@@ -276,21 +272,25 @@ func fetchGeoNames(
 }
 
 func processFetchedRecords(
-client *elastic.Client,
-fetchedRecords chan FetchedRecord,
-wg *sync.WaitGroup,
-configuration ElasticSearchConfig,
-meta MetaDataES) {
+	client *elastic.Client,
+	fetchedRecords chan FetchedRecord,
+	wg *sync.WaitGroup,
+	configuration ElasticSearchConfig) {
 
 	var memStats runtime.MemStats
 	bulkRequest := client.Bulk()
 
 	for record := range fetchedRecords {
 		request := elastic.NewBulkIndexRequest().
-			Index(meta.GetIndex()).
-			Type(meta.GetType()).
+			Index(record.GetIndex()).
+			Type(record.GetType()).
 			Id(strconv.FormatUint(record.GetId(), 10)).
 			Doc(record.GetSearchData())
+
+		parent := record.GetParent()
+		if parent != nil {
+			request.Parent(strconv.FormatUint(*parent, 10))
+		}
 
 		bulkRequest.Add(request)
 
@@ -303,7 +303,7 @@ meta MetaDataES) {
 				" buffer ", len(fetchedRecords),
 				" fetch ", totalFetch.Value(),
 				" send ", totalSend.Value(),
-				" alloc ", memStats.Alloc / 1024 / 1024, "mb",
+				" alloc ", memStats.Alloc/1024/1024, "mb",
 				" HeapObjects ", memStats.HeapObjects)
 
 			_, err := bulkRequest.Do()
@@ -331,14 +331,13 @@ meta MetaDataES) {
 func startProcessing(
 	client *elastic.Client,
 	fetchedRecords chan FetchedRecord,
-	configuration ElasticSearchConfig,
-	meta MetaDataES) {
+	configuration ElasticSearchConfig) {
 
 	var wg *sync.WaitGroup = new(sync.WaitGroup)
 
 	for i := uint8(0); i < configuration.Threads; i++ {
 		wg.Add(1)
-		go processFetchedRecords(client, fetchedRecords, wg, configuration, meta)
+		go processFetchedRecords(client, fetchedRecords, wg, configuration)
 	}
 
 	// Don't close fetchedRecords channel before all fetch goroutines will finish
@@ -352,8 +351,8 @@ var (
 
 func main() {
 	var (
-		configFile string
-		field string
+		configFile    string
+		field         string
 		maxTotalFetch uint64
 	)
 
@@ -390,18 +389,13 @@ func main() {
 
 	fetchedRecords := make(chan FetchedRecord, config.ChannelBufferSize) // async channel
 
-	var metaData MetaDataES
-
 	command := flag.Arg(0)
 	switch command {
 	case "delta":
 		model := flag.Arg(1)
 		switch model {
 		case "users":
-			metaData = MetaDataESUsers{}
-			break
 		case "geonames":
-			metaData = MetaDataESGeoNames{}
 			break
 		default:
 			log.Print("Unknown model, available models: [users, geonames]")
@@ -424,11 +418,9 @@ func main() {
 		break
 	case "users":
 		go startFetch(db, fetchedRecords, config.DataBase, command)
-		metaData = MetaDataESUsers{}
 		break
 	case "geonames":
 		go startFetch(db, fetchedRecords, config.DataBase, command)
-		metaData = MetaDataESGeoNames{}
 		break
 	default:
 		log.Print("Unknown command, available commands: [users, geonames]")
@@ -436,7 +428,7 @@ func main() {
 		break
 	}
 
-	startProcessing(client, fetchedRecords, config.ElasticSearch, metaData)
+	startProcessing(client, fetchedRecords, config.ElasticSearch)
 
 	log.Print("Finished ")
 }
