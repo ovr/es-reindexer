@@ -1,0 +1,8 @@
+package: github.com/interpals/es-reindexer
+import:
+- package: github.com/go-sql-driver/mysql
+  version: ^1.3.0
+- package: github.com/jinzhu/gorm
+  version: ^1.0.0
+- package: github.com/olivere/elastic
+  version: ^5.0.23
