@@ -3,15 +3,17 @@
 package main
 
 import (
+	esreindexer "github.com/interpals/es-reindexer"
 	"flag"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
-	"gopkg.in/olivere/elastic.v3"
+	"github.com/olivere/elastic"
 	"log"
 	"os"
 	"runtime"
 	"strconv"
 	"sync"
+	"context"
 )
 
 func createSelectUsersQuery(order string, limit string, condition string) string {
@@ -64,11 +66,11 @@ func createSelectUsersQuery(order string, limit string, condition string) string
 
 func fetchUsers(
 	db *gorm.DB,
-	users chan FetchedRecord,
+	users chan esreindexer.FetchedRecord,
 	wg *sync.WaitGroup,
 	numberOfThread uint64,
 	threadNumber uint64,
-	configuration DataBaseConfig) {
+	configuration esreindexer.DataBaseConfig) {
 
 	var (
 		threadsCount = strconv.FormatUint(numberOfThread, 10)
@@ -92,7 +94,7 @@ func fetchUsers(
 		for rows.Next() {
 			lastCount++
 
-			var user User
+			var user esreindexer.User
 
 			err := db.ScanRows(rows, &user)
 			if err != nil {
@@ -119,7 +121,7 @@ func fetchUsers(
 	log.Print("Finished fetch goroutine ", threadNumber)
 }
 
-func startFetch(db *gorm.DB, users chan FetchedRecord, configuration DataBaseConfig, command string) {
+func startFetch(db *gorm.DB, users chan esreindexer.FetchedRecord, configuration esreindexer.DataBaseConfig, command string) {
 	var wg *sync.WaitGroup = new(sync.WaitGroup)
 	threadsNumbers := uint64(configuration.Threads)
 
@@ -151,8 +153,8 @@ func startFetch(db *gorm.DB, users chan FetchedRecord, configuration DataBaseCon
 
 func startFetchDelta(
 	db *gorm.DB,
-	users chan FetchedRecord,
-	configuration DataBaseConfig,
+	users chan esreindexer.FetchedRecord,
+	configuration esreindexer.DataBaseConfig,
 	model string,
 	field string,
 	maxTotalFetch uint64) {
@@ -179,7 +181,7 @@ func startFetchDelta(
 		for rows.Next() {
 			lastCount++
 
-			var user User
+			var user esreindexer.User
 
 			err := db.ScanRows(rows, &user)
 			if err != nil {
@@ -211,11 +213,11 @@ func startFetchDelta(
 
 func fetchGeoNames(
 	db *gorm.DB,
-	channel chan FetchedRecord,
+	channel chan esreindexer.FetchedRecord,
 	wg *sync.WaitGroup,
 	numberOfThread uint64,
 	threadNumber uint64,
-	configuration DataBaseConfig) {
+	configuration esreindexer.DataBaseConfig) {
 
 	var (
 		threadsCount = strconv.FormatUint(numberOfThread, 10)
@@ -246,7 +248,7 @@ func fetchGeoNames(
 		for rows.Next() {
 			lastCount++
 
-			var row GNObjectAggregate
+			var row esreindexer.GNObjectAggregate
 
 			err := db.ScanRows(rows, &row)
 			if err != nil {
@@ -273,9 +275,9 @@ func fetchGeoNames(
 
 func processFetchedRecords(
 	client *elastic.Client,
-	fetchedRecords chan FetchedRecord,
+	fetchedRecords chan esreindexer.FetchedRecord,
 	wg *sync.WaitGroup,
-	configuration ElasticSearchConfig) {
+	configuration esreindexer.ElasticSearchConfig) {
 
 	var memStats runtime.MemStats
 	bulkRequest := client.Bulk()
@@ -306,7 +308,8 @@ func processFetchedRecords(
 				" alloc ", memStats.Alloc/1024/1024, "mb",
 				" HeapObjects ", memStats.HeapObjects)
 
-			_, err := bulkRequest.Do()
+			ctx := context.Background()
+			_, err := bulkRequest.Do(ctx)
 			if err != nil {
 				panic(err)
 			}
@@ -319,7 +322,9 @@ func processFetchedRecords(
 
 	if bulkRequest.NumberOfActions() > 0 {
 		log.Print("Latest Bulk insert go ", bulkRequest.NumberOfActions())
-		_, err := bulkRequest.Do()
+
+		ctx := context.Background()
+		_, err := bulkRequest.Do(ctx)
 		if err != nil {
 			panic(err)
 		}
@@ -330,8 +335,8 @@ func processFetchedRecords(
 
 func startProcessing(
 	client *elastic.Client,
-	fetchedRecords chan FetchedRecord,
-	configuration ElasticSearchConfig) {
+	fetchedRecords chan esreindexer.FetchedRecord,
+	configuration esreindexer.ElasticSearchConfig) {
 
 	var wg *sync.WaitGroup = new(sync.WaitGroup)
 
@@ -345,8 +350,8 @@ func startProcessing(
 }
 
 var (
-	totalFetch Counter
-	totalSend  Counter
+	totalFetch esreindexer.Counter
+	totalSend  esreindexer.Counter
 )
 
 func main() {
@@ -369,7 +374,7 @@ func main() {
 		panic("Please setup config parameter")
 	}
 
-	var config Configuration
+	var config esreindexer.Configuration
 	config.Init(configFile)
 
 	db, err := gorm.Open(config.DataBase.Dialect, config.DataBase.Uri)
@@ -387,7 +392,7 @@ func main() {
 	db.DB().SetMaxIdleConns(config.DataBase.MaxIdleConnections)
 	db.DB().SetMaxOpenConns(config.DataBase.MaxOpenConnections)
 
-	fetchedRecords := make(chan FetchedRecord, config.ChannelBufferSize) // async channel
+	fetchedRecords := make(chan esreindexer.FetchedRecord, config.ChannelBufferSize) // async channel
 
 	command := flag.Arg(0)
 	switch command {

@@ -3,6 +3,7 @@
 package main
 
 import (
+	esreindexer "github.com/interpals/es-reindexer"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -19,7 +20,7 @@ func migrateGeoNames(
 	wg *sync.WaitGroup,
 	numberOfThread uint64,
 	threadNumber uint64,
-	configuration DataBaseConfig) {
+	configuration esreindexer.DataBaseConfig) {
 
 	var (
 		threadsCount = strconv.FormatUint(numberOfThread, 10)
@@ -73,14 +74,14 @@ func migrateGeoNames(
 		for rows.Next() {
 			lastCount++
 
-			var row GeoName
+			var row esreindexer.GeoName
 
 			err := db.ScanRows(rows, &row)
 			if err != nil {
 				panic(err)
 			}
 
-			row.prepare()
+			row.Prepare()
 
 			// GNObjectBatchChannel
 			jsonResult, err := json.Marshal(row.GetLocalizationNames())
@@ -98,7 +99,7 @@ func migrateGeoNames(
 				}
 			}
 
-			GNObjectBatchChannel <- GNObject{
+			GNObjectBatchChannel <- esreindexer.GNObject{
 				Id:         row.GetId(),
 				Names:      string(jsonResult),
 				Latitude:   row.Latitude,
@@ -115,7 +116,7 @@ func migrateGeoNames(
 				panic(err)
 			}
 
-			GNObjectAlternateNamesBatchChannel <- GNObjectAlternateNames{
+			GNObjectAlternateNamesBatchChannel <- esreindexer.GNObjectAlternateNames{
 				Id:    row.GetId(),
 				Names: string(jsonResult),
 			}
@@ -164,10 +165,10 @@ func processBulkInsert(db *gorm.DB, buffer [][]interface{}, tableName string) {
 	}
 }
 
-func processChannelBuffer(db *gorm.DB, buffer chan GNObjectIterface, wg *sync.WaitGroup) {
+func processChannelBuffer(db *gorm.DB, buffer chan esreindexer.GNObjectIterface, wg *sync.WaitGroup) {
 	var (
 		batchCount uint16 = 0
-		record     GNObjectIterface
+		record     esreindexer.GNObjectIterface
 		bulkBuffer [][]interface{}
 	)
 
@@ -193,7 +194,7 @@ func processChannelBuffer(db *gorm.DB, buffer chan GNObjectIterface, wg *sync.Wa
 	wg.Done()
 }
 
-func startProcessingMigration(db *gorm.DB, configuration DataBaseConfig) {
+func startProcessingMigration(db *gorm.DB, configuration esreindexer.DataBaseConfig) {
 	var wg *sync.WaitGroup = new(sync.WaitGroup)
 	threadsNumbers := uint64(configuration.Threads)
 
@@ -234,7 +235,7 @@ func fetchAdmin1Codes(db *gorm.DB) {
 		for rows.Next() {
 			lastCount++
 
-			var row GeoAdmin1Code
+			var row esreindexer.GeoAdmin1Code
 
 			err := db.ScanRows(rows, &row)
 			if err != nil {
@@ -255,14 +256,14 @@ func fetchAdmin1Codes(db *gorm.DB) {
 	}
 }
 
-type AdminCodesMap map[string]GeoAdmin1Code
+type AdminCodesMap map[string]esreindexer.GeoAdmin1Code
 
 var (
-	totalFetch  Counter
+	totalFetch  esreindexer.Counter
 	admin1Codes AdminCodesMap
 
-	GNObjectBatchChannel               chan GNObjectIterface //GNObject
-	GNObjectAlternateNamesBatchChannel chan GNObjectIterface //GNObjectAlternateNames
+	GNObjectBatchChannel               chan esreindexer.GNObjectIterface //GNObject
+	GNObjectAlternateNamesBatchChannel chan esreindexer.GNObjectIterface //GNObjectAlternateNames
 )
 
 func main() {
@@ -274,7 +275,7 @@ func main() {
 		panic("Please setup config parameter")
 	}
 
-	var config Configuration
+	var config esreindexer.Configuration
 	config.Init(configFile)
 
 	db, err := gorm.Open(config.DataBase.Dialect, config.DataBase.Uri)
@@ -290,8 +291,8 @@ func main() {
 	admin1Codes = AdminCodesMap{}
 	fetchAdmin1Codes(db)
 
-	GNObjectBatchChannel = make(chan GNObjectIterface, 1000000)               // async channel
-	GNObjectAlternateNamesBatchChannel = make(chan GNObjectIterface, 1000000) // async channel
+	GNObjectBatchChannel = make(chan esreindexer.GNObjectIterface, 1000000)               // async channel
+	GNObjectAlternateNamesBatchChannel = make(chan esreindexer.GNObjectIterface, 1000000) // async channel
 
 	go startProcessingMigration(db, config.DataBase)
 

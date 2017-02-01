@@ -1,6 +1,6 @@
 // Copyright 2016-present InterPals. All Rights Reserved.
 
-package main
+package esreindexer
 
 import (
 	"encoding/json"

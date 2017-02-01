@@ -1,6 +1,6 @@
 // Copyright 2016-present InterPals. All Rights Reserved.
 
-package main
+package esreindexer
 
 import (
 	"encoding/json"
@@ -62,7 +62,7 @@ func (this GeoName) GetId() uint64 {
 	return this.Geonameid
 }
 
-func (this *GeoName) prepare() {
+func (this *GeoName) Prepare() {
 	this.AlternativeNames = []GeoAlternateName{}
 
 	if this.AlternativeNamesAsString != "" {
