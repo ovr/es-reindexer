@@ -31,6 +31,7 @@ type User struct {
 	FetchedRecord `json:"-"`
 
 	Id            uint64 `json:"-"`
+	Signup        string `json:"signup"`
 	Last_login    string `json:"last_login"`
 	Modified      string `json:"modified"`
 	Name          string `json:"name"`

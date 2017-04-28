@@ -23,6 +23,7 @@ func createSelectUsersQuery(order string, limit string, condition string) string
 		u.name,
 		u.username,
 		u.last_login,
+		u.signup,
 		u.modified,
 		u.sex,
 		u.tz,
