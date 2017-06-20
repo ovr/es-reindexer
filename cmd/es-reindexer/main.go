@@ -3,9 +3,10 @@
 package main
 
 import (
-	esreindexer "github.com/interpals/es-reindexer"
+	"context"
 	"flag"
 	_ "github.com/go-sql-driver/mysql"
+	esreindexer "github.com/interpals/es-reindexer"
 	"github.com/jinzhu/gorm"
 	"github.com/olivere/elastic"
 	"log"
@@ -13,7 +14,6 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
-	"context"
 )
 
 func createSelectUsersQuery(order string, limit string, condition string) string {
@@ -35,6 +35,7 @@ func createSelectUsersQuery(order string, limit string, condition string) string
 		u.photo_exists,
 		u.main_thumb,
 		u.cont,
+		u.wg_id,
 		u.age,
 		if(u.birth > '1900-01-01', u.birth, '1900-01-01') birth,
 		u.lfor_email,
