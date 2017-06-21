@@ -48,6 +48,7 @@ type User struct {
 	City          string `json:"city"`
 	Country       string `json:"country"`
 	Iso2          string `json:"iso2"`
+	WgId          uint64 `json:"wg_id"`
 
 	Lfor_email    bool `json:"lfor_email"`
 	Lfor_flirt    bool `json:"lfor_flirt"`
@@ -66,8 +67,8 @@ type User struct {
 	Tv          string `json:"tv"`
 	Langex_desc string `json:"langex_desc"`
 
-	Learninfo string `json:"-"`
-	Knowninfo string `json:"-"`
+	Learninfo string `json:"learninfo"`
+	Knowninfo string `json:"knowninfo"`
 
 	Known []Known `json:"known"`
 	Learn []Learn `json:"learn"`
