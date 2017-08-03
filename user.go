@@ -45,10 +45,19 @@ type User struct {
 	Sex           string `json:"sex"`
 	SexBool       bool   `json:"sex_bool"`
 	Tz            string `json:"tz"`
-	City          string `json:"city"`
-	Country       string `json:"country"`
-	Iso2          string `json:"iso2"`
-	WgId          uint64 `json:"wg_id"`
+
+	// legacy
+	City    string `json:"city"`
+	Country string `json:"country"`
+	Iso2    string `json:"iso2"`
+	WgId    uint64 `json:"wg_id"`
+
+	CountryHome    string `json:"country_home"`
+	CityHome       uint64 `json:"city_home"`
+	RegionHome     uint64 `json:"region_home"`
+	CountryCurrent string `json:"country_current"`
+	CityCurrent    uint64 `json:"city_current"`
+	RegionCurrent  uint64 `json:"region_current"`
 
 	Lfor_email    bool `json:"lfor_email"`
 	Lfor_flirt    bool `json:"lfor_flirt"`
@@ -67,10 +76,10 @@ type User struct {
 	Tv          string `json:"tv"`
 	Langex_desc string `json:"langex_desc"`
 
-	Learninfo string `json:"learninfo"`
-	Knowninfo string `json:"knowninfo"`
-	Known []Known `json:"known"`
-	Learn []Learn `json:"learn"`
+	Learninfo string  `json:"learninfo"`
+	Knowninfo string  `json:"knowninfo"`
+	Known     []Known `json:"known"`
+	Learn     []Learn `json:"learn"`
 }
 
 func (User) TableName() string {
