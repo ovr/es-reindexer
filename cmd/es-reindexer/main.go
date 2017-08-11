@@ -143,6 +143,9 @@ func startFetch(db *gorm.DB, users chan esreindexer.FetchedRecord, configuration
 		case "geonames":
 			go fetchGeoNames(db.New(), users, wg, threadsNumbers, i, configuration)
 			break
+		case "trips":
+			go fetchTrips(db.New(), users, wg, threadsNumbers, i, configuration)
+			break
 		default:
 			panic("Unknown command to process")
 		}
@@ -217,6 +220,67 @@ func startFetchDelta(
 
 	// No users, lets close channel to stop range query and send latest bulk request
 	close(users)
+}
+
+func fetchTrips(
+	db *gorm.DB,
+	channel chan esreindexer.FetchedRecord,
+	wg *sync.WaitGroup,
+	numberOfThread uint64,
+	threadNumber uint64,
+	configuration esreindexer.DataBaseConfig) {
+
+	var (
+		threadsCount = strconv.FormatUint(numberOfThread, 10)
+		threadId     = strconv.FormatUint(threadNumber, 10)
+		limit        = strconv.FormatUint(uint64(configuration.Limit), 10)
+
+		lastId    uint64 = 0
+		lastCount uint64
+	)
+
+	for {
+		lastCount = 0
+
+		// TODO: search completed trips too?
+		rows, err := db.Raw(`
+			SELECT
+			  obj.*
+			FROM trips obj
+			WHERE arrival_date > NOW() AND open = 1 AND acl <= 1 AND obj.id > ` + strconv.FormatUint(lastId, 10) +
+			` AND obj.id % ` + threadsCount + ` = ` + threadId +
+			` ORDER BY obj.id ASC LIMIT ` + limit).Rows()
+
+		if err != nil {
+			panic(err)
+		}
+
+		for rows.Next() {
+			lastCount++
+
+			var row esreindexer.Trip
+
+			err := db.ScanRows(rows, &row)
+			if err != nil {
+				panic(err)
+			}
+
+			lastId = row.GetId()
+			channel <- row
+		}
+
+		if lastCount == 0 {
+			// Nothing to fetch
+			break
+		}
+
+		totalFetch.Add(lastCount)
+
+		rows.Close()
+	}
+
+	wg.Done()
+	log.Print("Finished fetch goroutine ", threadNumber)
 }
 
 func fetchGeoNames(
@@ -435,13 +499,16 @@ func main() {
 	case "geonames":
 		go startFetch(db, fetchedRecords, config.DataBase, command)
 		break
+	case "trips":
+		go startFetch(db, fetchedRecords, config.DataBase, command)
+		break
 	default:
-		log.Print("Unknown command, available commands: [users, geonames]")
+		log.Print("Unknown command, available commands: [users, geonames, trips]")
 		os.Exit(1)
 		break
 	}
 
 	startProcessing(client, fetchedRecords, config.ElasticSearch)
 
-	log.Print("Finished ")
+	log.Print("Finished")
 }
