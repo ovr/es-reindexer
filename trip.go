@@ -20,6 +20,8 @@ type Trip struct {
 	Acl           uint64  `gorm:"column:acl" json:"acl"`
 	Open          uint64  `gorm:"column:open" json:"open"`
 	Created       string  `gorm:"column:created_at" json:"created_at"`
+	City          string  `gorm:"column:city" json:"city"`
+	Country       string  `gorm:"column:country" json:"country"`
 }
 
 func (this Trip) GetType() string {
@@ -32,7 +34,6 @@ func (this Trip) GetSearchData() interface{} {
 	result["id"] = this.Id
 	result["owner_id"] = this.OwnerId
 	result["destination_id"] = this.DestinationId
-	// TODO: add city name
 	result["location"] = &JSONMap{
 		"lat": this.Latitude,
 		"lon": this.Longitude,
@@ -43,6 +44,8 @@ func (this Trip) GetSearchData() interface{} {
 	result["max_travelers"] = this.MaxTravelers
 	result["acl"] = this.Acl
 	result["created"] = this.Created
+	result["city"] = this.City
+	result["country"] = this.Country
 
 	return result
 }
@@ -61,6 +64,8 @@ func (this Trip) GetValues() []interface{} {
 		this.Acl,
 		this.Open,
 		this.Created,
+		this.City,
+		this.Country,
 	}
 }
 
