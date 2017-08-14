@@ -242,13 +242,12 @@ func fetchTrips(
 	for {
 		lastCount = 0
 
-		// TODO: search completed trips too?
 		rows, err := db.Raw(`
 			SELECT
 			  obj.*, gn_cities.name city, gn_cities.country
 			FROM trips obj
                 LEFT JOIN gn_cities ON obj.destination_id = gn_cities.id
-			WHERE arrival_date > NOW() AND open = 1 AND acl <= 1 AND obj.id > ` + strconv.FormatUint(lastId, 10) +
+			WHERE open = 1 AND acl <= 1 AND obj.id > ` + strconv.FormatUint(lastId, 10) +
 			` AND obj.id % ` + threadsCount + ` = ` + threadId +
 			` ORDER BY obj.id ASC LIMIT ` + limit).Rows()
 
