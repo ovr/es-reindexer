@@ -244,7 +244,7 @@ func fetchTrips(
 
 		rows, err := db.Raw(`
 			SELECT
-			  obj.*, gn_cities.name city, gn_cities.country
+			  obj.*, gn_cities.name city, gn_cities.country, DATEDIFF(obj.departure_date, obj.arrival_date) + 1 trip_days
 			FROM trips obj
                 LEFT JOIN gn_cities ON obj.destination_id = gn_cities.id
 			WHERE open = 1 AND acl <= 1 AND obj.id > ` + strconv.FormatUint(lastId, 10) +

@@ -22,6 +22,7 @@ type Trip struct {
 	Created       string  `gorm:"column:created_at" json:"created_at"`
 	City          string  `gorm:"column:city" json:"city"`
 	Country       string  `gorm:"column:country" json:"country"`
+	TripDays      uint64  `gorm:"column:trip_days" json:"trip_days"`
 }
 
 func (this Trip) GetType() string {
@@ -46,6 +47,7 @@ func (this Trip) GetSearchData() interface{} {
 	result["created"] = this.Created
 	result["city"] = this.City
 	result["country"] = this.Country
+	result["trip_days"] = this.TripDays
 
 	return result
 }
@@ -66,6 +68,7 @@ func (this Trip) GetValues() []interface{} {
 		this.Created,
 		this.City,
 		this.Country,
+		this.TripDays,
 	}
 }
 
