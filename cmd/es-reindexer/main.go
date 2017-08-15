@@ -244,9 +244,11 @@ func fetchTrips(
 
 		rows, err := db.Raw(`
 			SELECT
-			  obj.*, gn_cities.name city, gn_cities.country, DATEDIFF(obj.departure_date, obj.arrival_date) + 1 trip_days
+			  obj.*, gn_cities.name city, gn_cities.country, DATEDIFF(obj.departure_date, obj.arrival_date) + 1 trip_days,
+              users.age
 			FROM trips obj
                 LEFT JOIN gn_cities ON obj.destination_id = gn_cities.id
+                LEFT JOIN users ON obj.owner_id = users.id
 			WHERE open = 1 AND acl <= 1 AND obj.id > ` + strconv.FormatUint(lastId, 10) +
 			` AND obj.id % ` + threadsCount + ` = ` + threadId +
 			` ORDER BY obj.id ASC LIMIT ` + limit).Rows()
