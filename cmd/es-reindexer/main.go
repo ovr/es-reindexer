@@ -245,7 +245,9 @@ func fetchTrips(
 		rows, err := db.Raw(`
 			SELECT
 			  obj.*, gn_cities.name city, gn_cities.country, DATEDIFF(obj.departure_date, obj.arrival_date) + 1 trip_days,
-              users.age
+              users.age, users.sex, users.country_home,
+                (SELECT GROUP_CONCAT(CONCAT_WS('|', known.lang, known.level) SEPARATOR ',')
+                FROM user_langs known WHERE known.user_id = users.id) as knowninfo
 			FROM trips obj
                 LEFT JOIN gn_cities ON obj.destination_id = gn_cities.id
                 LEFT JOIN users ON obj.owner_id = users.id
@@ -260,15 +262,16 @@ func fetchTrips(
 		for rows.Next() {
 			lastCount++
 
-			var row esreindexer.Trip
+			var trip esreindexer.Trip
 
-			err := db.ScanRows(rows, &row)
+			err := db.ScanRows(rows, &trip)
 			if err != nil {
 				panic(err)
 			}
 
-			lastId = row.GetId()
-			channel <- row
+			lastId = trip.GetId()
+			trip.Prepare()
+			channel <- trip
 		}
 
 		if lastCount == 0 {

@@ -2,10 +2,10 @@
 
 package esreindexer
 
-/*import (
-	"encoding/json"
+import (
+	"strconv"
 	"strings"
-)*/
+)
 
 type Trip struct {
 	Id            uint64  `gorm:"primary_key:true;column:id" json:"id"`
@@ -24,6 +24,29 @@ type Trip struct {
 	Country       string  `gorm:"column:country" json:"country"`
 	TripDays      uint64  `gorm:"column:trip_days" json:"trip_days"`
 	Age           uint64  `gorm:"column:age" json:"age"`
+	Sex           string  `gorm:"column:sex" json:"sex"`
+	CountryHome   string  `gorm:"column:country_home" json:"country_home"`
+	KnownInfo     string  `gorm:"column:knowninfo" json:"knowninfo"`
+	Known         []Known `json:"known"`
+	SexBool       bool    `json:"sex_bool"`
+}
+
+func (this *Trip) Prepare() {
+	this.SexBool = this.Sex == "female"
+
+	if this.KnownInfo != "" {
+		languagesInfo := strings.Split(this.KnownInfo, ",")
+		for i := 0; i < len(languagesInfo); i++ {
+			parts := strings.Split(languagesInfo[i], "|")
+
+			level, err := strconv.ParseUint(parts[1], 10, 8)
+			if err != nil {
+				panic(err)
+			}
+
+			this.Known = append(this.Known, Known{Lang: parts[0], Level: uint8(level)})
+		}
+	}
 }
 
 func (this Trip) GetType() string {
@@ -50,6 +73,9 @@ func (this Trip) GetSearchData() interface{} {
 	result["country"] = this.Country
 	result["trip_days"] = this.TripDays
 	result["age"] = this.Age
+	result["sex"] = this.Sex
+	result["country_home"] = this.CountryHome
+	result["knowninfo"] = this.KnownInfo
 
 	return result
 }
@@ -72,6 +98,9 @@ func (this Trip) GetValues() []interface{} {
 		this.Country,
 		this.TripDays,
 		this.Age,
+		this.Sex,
+		this.CountryHome,
+		this.KnownInfo,
 	}
 }
 
