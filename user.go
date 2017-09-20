@@ -46,6 +46,7 @@ type User struct {
 	SexBool       bool   `json:"sex_bool"`
 	Tz            string `json:"tz"`
 	City          string `json:"city"`
+	Wg_id         string `json:"wg_id"`
 	Country       string `json:"country"`
 	Iso2          string `json:"iso2"`
 

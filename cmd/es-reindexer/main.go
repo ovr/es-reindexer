@@ -28,6 +28,7 @@ func createSelectUsersQuery(order string, limit string, condition string) string
 		u.sex,
 		u.tz,
 		u.city,
+		u.wg_id,
 		u.country,
 		u.iso2,
 		u.website,
