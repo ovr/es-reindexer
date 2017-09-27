@@ -3,9 +3,10 @@
 package main
 
 import (
-	esreindexer "github.com/interpals/es-reindexer"
+	"context"
 	"flag"
 	_ "github.com/go-sql-driver/mysql"
+	esreindexer "github.com/interpals/es-reindexer"
 	"github.com/jinzhu/gorm"
 	"github.com/olivere/elastic"
 	"log"
@@ -13,7 +14,6 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
-	"context"
 )
 
 func createSelectUsersQuery(order string, limit string, condition string) string {
@@ -213,6 +213,66 @@ func startFetchDelta(
 	close(users)
 }
 
+func fetchPrompts(
+	db *gorm.DB,
+	channel chan esreindexer.FetchedRecord,
+	wg *sync.WaitGroup,
+	numberOfThread uint64,
+	threadNumber uint64,
+	configuration esreindexer.DataBaseConfig) {
+
+	var (
+		threadsCount = strconv.FormatUint(numberOfThread, 10)
+		threadId     = strconv.FormatUint(threadNumber, 10)
+		limit        = strconv.FormatUint(uint64(configuration.Limit), 10)
+
+		lastId    uint64 = 0
+		lastCount uint64
+	)
+
+	for {
+		lastCount = 0
+
+		rows, err := db.Raw(`
+			SELECT
+			  obj.id, obj.uid, obj.type, obj.language, obj.data, obj.created
+			FROM le_prompts obj
+			WHERE obj.public=1 AND obj.id > ` + strconv.FormatUint(lastId, 10) +
+			` AND obj.id % ` + threadsCount + ` = ` + threadId +
+			` ORDER BY obj.id ASC LIMIT ` + limit).Rows()
+
+		if err != nil {
+			panic(err)
+		}
+
+		for rows.Next() {
+			lastCount++
+
+			var row esreindexer.Prompt
+
+			err := db.ScanRows(rows, &row)
+			if err != nil {
+				panic(err)
+			}
+
+			lastId = row.GetId()
+			channel <- row
+		}
+
+		if lastCount == 0 {
+			// Nothing to fetch
+			break
+		}
+
+		totalFetch.Add(lastCount)
+
+		rows.Close()
+	}
+
+	wg.Done()
+	log.Print("Finished fetch goroutine ", threadNumber)
+}
+
 func fetchGeoNames(
 	db *gorm.DB,
 	channel chan esreindexer.FetchedRecord,
@@ -402,10 +462,9 @@ func main() {
 		model := flag.Arg(1)
 		switch model {
 		case "users":
-		case "geonames":
 			break
 		default:
-			log.Print("Unknown model, available models: [users, geonames]")
+			log.Print("Unknown model, available models: [users]")
 			os.Exit(1)
 			break
 		}
@@ -429,13 +488,16 @@ func main() {
 	case "geonames":
 		go startFetch(db, fetchedRecords, config.DataBase, command)
 		break
+	case "prompt":
+		go startFetch(db, fetchedRecords, config.DataBase, command)
+		break
 	default:
-		log.Print("Unknown command, available commands: [users, geonames]")
+		log.Print("Unknown command, available commands: [users, geonames, prompt]")
 		os.Exit(1)
 		break
 	}
 
 	startProcessing(client, fetchedRecords, config.ElasticSearch)
 
-	log.Print("Finished ")
+	log.Print("Finished")
 }
