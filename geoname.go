@@ -4,8 +4,67 @@ package esreindexer
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 )
+
+type GNItem struct {
+	FetchedRecord `json:"-"`
+
+	Type         string
+	Geonameid    uint64
+	Country      string
+	Regionid     string
+	Population   int32
+	Timezone     string
+	Latitude     float32
+	Longitude    float32
+	CityNames    map[string]string
+	RegionNames  map[string]string
+	CountryNames map[string]string
+	Suggestions  map[string]bool
+}
+
+type GNCountryRow struct {
+	Geonameid  uint64
+	Country    string
+	Name       string
+	Lang       string
+	Timezone   string
+	Latitude   float32
+	Longitude  float32
+	Population int32
+}
+
+type GNRegionRow struct {
+	Geonameid  uint64
+	Name       string
+	Asciiname  string
+	Altname    string
+	Lang       string
+	Timezone   string
+	Latitude   float32
+	Longitude  float32
+	Population int32
+	Country    string
+}
+
+type GNCityRow struct {
+	Geonameid     uint64
+	Cityname      string
+	Cityasciiname string
+	Cityalt       string
+	Lang          string
+	Regname       string
+	Regasciiname  string
+	Regalt        string
+	Regid         string
+	Timezone      string
+	Latitude      float32
+	Longitude     float32
+	Population    int32
+	Country       string
+}
 
 type GeoAlternateName struct {
 	Id              uint64 `gorm:"primary_key:true;column:alternatenameId" json:"-"`
@@ -16,10 +75,6 @@ type GeoAlternateName struct {
 	IsShortName     bool   `json:"-"`
 	IsColloquail    bool   `json:"-"`
 	IsHistoric      bool   `json:"-"`
-}
-
-func (GeoAlternateName) TableName() string {
-	return "alternatename"
 }
 
 type GeoName struct {
@@ -243,6 +298,55 @@ func (this GNObjectAggregate) GetSearchData() interface{} {
 	}
 
 	result["names"] = names
+
+	return result
+}
+
+func (GNItem) GetIndex() string {
+	return "geo"
+}
+
+func (this GNItem) GetType() string {
+	return this.Type
+}
+
+func (this GNItem) GetId() uint64 {
+	return this.Geonameid
+}
+
+func (this GNItem) GetParent() *uint64 {
+	return nil
+}
+
+func (this GNItem) GetSearchData() interface{} {
+	result := JSONMap{
+		"country_iso2": this.Country,
+		"location": strconv.FormatFloat(float64(this.Latitude), 'f', -1, 64) + "," +
+			strconv.FormatFloat(float64(this.Longitude), 'f', -1, 64),
+		"population": strconv.Itoa(int(this.Population)),
+		"suggest":    []string{},
+		"timezone":   this.Timezone,
+	}
+
+	for lang, name := range this.CityNames {
+		result["city_"+lang] = name
+	}
+
+	for lang, name := range this.RegionNames {
+		result["region_"+lang] = name
+	}
+
+	for lang, name := range this.CountryNames {
+		result["country_"+lang] = name
+	}
+
+	for sug, _ := range this.Suggestions {
+		result["suggest"] = append(result["suggest"].([]string), sug)
+	}
+
+	if this.Type == "city" {
+		result["regionid"] = this.Regionid
+	}
 
 	return result
 }
