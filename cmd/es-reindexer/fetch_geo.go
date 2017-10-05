@@ -184,6 +184,7 @@ ORDER BY
 		}
 
 		for rows.Next() {
+			row = esreindexer.GNRegionRow{}
 			err := db.ScanRows(rows, &row)
 
 			if err != nil {
@@ -334,6 +335,7 @@ ORDER BY
 		}
 
 		for rows.Next() {
+			row = esreindexer.GNCityRow{}
 			err := db.ScanRows(rows, &row)
 
 			if err != nil {
