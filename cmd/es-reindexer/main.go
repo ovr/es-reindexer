@@ -28,8 +28,8 @@ func startFetch(db *gorm.DB, eschan chan esreindexer.FetchedRecord, configuratio
 		case "users":
 			go fetchUsers(db.New(), eschan, wg, threadsNumbers, i, configuration)
 			break
-		case "geonames":
-			go fetchGeoNames(db.New(), eschan, wg, threadsNumbers, i, configuration)
+		case "geo":
+			go fetchGeo(db.New(), eschan, wg, threadsNumbers, i, configuration)
 			break
 		default:
 			panic("Unknown command to process")
@@ -211,7 +211,30 @@ func main() {
 	var config esreindexer.Configuration
 	config.Init(configFile)
 
-	db, err := gorm.Open(config.DataBase.Dialect, config.DataBase.Uri)
+
+	var dbUri string
+	var model string
+	command := flag.Arg(0)
+
+	switch command {
+		case "users-delta":
+			fallthrough
+		case "users":
+			dbUri = config.DataBase.Uri
+			model = "users"
+			break;
+		case "geo":
+			dbUri = config.DataBase.UriGeo
+			model = "geo"
+			break;
+		default:
+			log.Print("Usage: es-reindexer [users|geo|users-delta]")
+			os.Exit(1)
+			break
+	}
+
+	db, err := gorm.Open(config.DataBase.Dialect, dbUri)
+
 	if err != nil {
 		panic(err)
 	}
@@ -228,20 +251,8 @@ func main() {
 
 	fetchedRecords := make(chan esreindexer.FetchedRecord, config.ChannelBufferSize) // async channel
 
-	command := flag.Arg(0)
 	switch command {
-	case "delta":
-		model := flag.Arg(1)
-		switch model {
-		case "users":
-		case "geonames":
-			break
-		default:
-			log.Print("Unknown model, available models: [users, geonames]")
-			os.Exit(1)
-			break
-		}
-
+	case "users-delta":
 		if field != "signup" && field != "last_login" {
 			panic("Sort field must be [signup, last_login]")
 		}
@@ -258,12 +269,8 @@ func main() {
 	case "users":
 		go startFetch(db, fetchedRecords, config.DataBase, command)
 		break
-	case "geonames":
+	case "geo":
 		go startFetch(db, fetchedRecords, config.DataBase, command)
-		break
-	default:
-		log.Print("Unknown command, available commands: [users, geonames]")
-		os.Exit(1)
 		break
 	}
 

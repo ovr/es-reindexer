@@ -250,7 +250,7 @@ type GNObjectAggregate struct {
 }
 
 func (GNObjectAggregate) GetIndex() string {
-	return "geonames"
+	return "geo"
 }
 
 func (this GNObjectAggregate) GetType() string {

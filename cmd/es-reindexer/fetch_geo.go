@@ -8,7 +8,7 @@ import (
 	"log"
 )
 
-func fetchGeoNames(
+func fetchGeo(
 	db *gorm.DB,
 	channel chan esreindexer.FetchedRecord,
 	wg *sync.WaitGroup,
@@ -59,8 +59,8 @@ func fetchCountries(
 	g.latitude,
 	g.longitude,
 	g.timezone
-	FROM gn10k.geoname g
-	JOIN gn10k.alternatename a
+	FROM geoname g
+	JOIN alternatename a
 	ON a.geonameid = g.geonameid
 WHERE (g.fcode LIKE 'PCL%' OR g.fcode="TERR") AND
 		a.isoLanguage NOT IN('link')
@@ -156,17 +156,17 @@ SELECT
 	g.latitude latitude,
 	g.longitude longitude,
 	g.country country
-FROM gn10k.admin1CodesAscii ac
-LEFT JOIN gn10k.geoname g ON
+FROM admin1CodesAscii ac
+LEFT JOIN geoname g ON
 	g.geonameid = ac.geonameid
-LEFT OUTER JOIN gn10k.alternatename a ON
+LEFT OUTER JOIN alternatename a ON
     ac.geonameid = a.geonameid AND
 	a.isoLanguage NOT IN ('link', 'iata', 'post', 'icao', 'faac', 'fr_1793')
 WHERE
 	ac.geonameid IN
 		(SELECT * FROM /* mysql is stupid and won't allow limits in IN subqueries */
 			(SELECT geonameid
-			FROM gn10k.admin1CodesAscii ac
+			FROM admin1CodesAscii ac
 			WHERE ac.geonameid > ` + strconv.FormatUint(lastId, 10) + ` AND
 				  ac.geonameid % ` + threadsCount + ` = ` + threadId + `
 		    ORDER BY geonameid ASC
@@ -298,15 +298,15 @@ SELECT
 	g_reg.name regname,
 	a_reg.alternateName regalt,
 	g_reg.geonameid regid
-FROM gn10k.geoname g
-LEFT OUTER JOIN gn10k.alternatename a_city ON
+FROM geoname g
+LEFT OUTER JOIN alternatename a_city ON
 	g.geonameid = a_city.geonameid AND
 	a_city.isoLanguage NOT IN ('link', 'iata', 'post', 'icao', 'faac', 'fr_1793')
-LEFT JOIN gn10k.admin1CodesAscii ac ON
+LEFT JOIN admin1CodesAscii ac ON
 	ac.code = CONCAT(g.country, '.', g.admin1)
-LEFT JOIN gn10k.geoname g_reg ON
+LEFT JOIN geoname g_reg ON
 	g_reg.geonameid = ac.geonameid
-LEFT OUTER JOIN gn10k.alternatename a_reg ON
+LEFT OUTER JOIN alternatename a_reg ON
 	ac.geonameid = a_reg.geonameid AND
 	a_reg.isoLanguage = a_city.isoLanguage AND
 	a_city.isoLanguage NOT IN ('link', 'iata', 'post', 'icao', 'faac', 'fr_1793')
@@ -315,7 +315,7 @@ WHERE
 	g.geonameid IN
 		(SELECT * FROM /* mysql is stupid and won't allow limits in IN subqueries */
 			(SELECT geonameid
-			FROM gn10k.geoname g
+			FROM geoname g
 			WHERE g.geonameid > ` + strconv.FormatUint(lastId, 10) + ` AND
 				  g.geonameid % ` + threadsCount + ` = ` + threadId + `
 			ORDER BY geonameid ASC

@@ -38,6 +38,7 @@ type ElasticSearchConfig struct {
 type DataBaseConfig struct {
 	Dialect            string `json:"dialect"`
 	Uri                string `json:"uri"`
+	UriGeo             string `json:"uri-geo"`
 	MaxIdleConnections int    `json:"max-idle-connections"`
 	MaxOpenConnections int    `json:"max-open-connections"`
 	ShowLog            bool   `json:"log"`

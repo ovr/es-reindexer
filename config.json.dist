@@ -6,7 +6,8 @@
   },
   "db": {
     "dialect": "mysql",
-    "uri": "user:password@/db?charset=utf8",
+    "uri": "user:password@/penpals?charset=utf8",
+    "uri-geo": "user:password@/geo?charset=utf8",
     "max-idle-connections": 1,
     "max-open-connections": 10,
     "log": true,
