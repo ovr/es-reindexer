@@ -253,8 +253,8 @@ func main() {
 
 	switch command {
 	case "users-delta":
-		if field != "signup" && field != "last_login" {
-			panic("Sort field must be [signup, last_login]")
+		if field != "signup" && field != "last_login" && field != "modified" {
+			panic("Sort field must be [signup, last_login, modified]")
 		}
 
 		if maxTotalFetch < 100 || maxTotalFetch > 100000 {
