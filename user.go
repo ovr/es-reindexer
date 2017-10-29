@@ -30,7 +30,7 @@ func (Learn) TableName() string {
 type User struct {
 	FetchedRecord `json:"-"`
 
-	Id            uint64 `json:"-"`
+	Id            uint64 `json:"id"`
 	Signup        string `json:"signup"`
 	Last_login    string `json:"last_login"`
 	Modified      string `json:"modified"`
@@ -45,17 +45,28 @@ type User struct {
 	Sex           string `json:"sex"`
 	SexBool       bool   `json:"sex_bool"`
 	Tz            string `json:"tz"`
-	City          string `json:"city"`
-	Wg_id         string `json:"wg_id"`
-	Country       string `json:"country"`
-	Iso2          string `json:"iso2"`
 
-	Lfor_email    bool `json:"lfor_email"`
-	Lfor_flirt    bool `json:"lfor_flirt"`
+	// Legacy
+	City    string `json:"city"`
+	Wg_id   string `json:"wg_id"`
+	Country string `json:"country"`
+	Iso2    string `json:"iso2"`
+
+	CityNameEn  string `json:"city_name_en"`
+	CityId      uint64 `json:"city_id"`
+	RegionId    uint64 `json:"region_id"`
+	CountryCode string `json:"country_code"`
+
+	HomeCityNameEn  string `json:"home_city_name_en"`
+	HomeCityId      uint64 `json:"home_city_id"`
+	HomeRegionId    uint64 `json:"home_region_id"`
+	HomeCountryCode string `json:"home_country_code"`
+
 	Lfor_friend   bool `json:"lfor_friend"`
 	Lfor_langex   bool `json:"lfor_langex"`
 	Lfor_relation bool `json:"lfor_relation"`
 	Lfor_snail    bool `json:"lfor_snail"`
+	Lfor_meet     bool `json:"lfor_meet"`
 
 	Description string `json:"description"`
 	Books       string `json:"books"`
@@ -67,8 +78,13 @@ type User struct {
 	Tv          string `json:"tv"`
 	Langex_desc string `json:"langex_desc"`
 
-	Learninfo string `json:"-"`
-	Knowninfo string `json:"-"`
+	Education_level uint8  `json:"education_level"`
+	Education_desc  string `json:"education_desc"`
+	Occupation      string `json:"occupation"`
+	Relationship    uint8  `json:"relationship"`
+
+	Learninfo string `json:"learninfo"`
+	Knowninfo string `json:"knowninfo"`
 
 	Known []Known `json:"known"`
 	Learn []Learn `json:"learn"`

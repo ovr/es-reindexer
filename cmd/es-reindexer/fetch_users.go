@@ -30,12 +30,11 @@ func createSelectUsersQuery(order string, limit string, condition string) string
 		u.cont,
 		u.age,
 		u.birth,
-		u.lfor_email,
-		u.lfor_flirt,
 		u.lfor_friend,
 		u.lfor_langex,
 		u.lfor_relation,
 		u.lfor_snail,
+		u.lfor_meet,
 		pt.description,
 		pt.books,
 		pt.hobbies,
@@ -45,10 +44,25 @@ func createSelectUsersQuery(order string, limit string, condition string) string
 		pt.quotes,
 		pt.tv,
 		pt.langex_desc,
+		u.education_level,
+		u.education_desc,
+		u.occupation,
+		u.relationship,
 		(SELECT GROUP_CONCAT(CONCAT_WS('|', known.lang, known.level) SEPARATOR ',')
 		FROM user_langs known WHERE known.user_id = u.id) as knowninfo,
 		(SELECT GROUP_CONCAT(CONCAT_WS('|', learn.lang, learn.level) SEPARATOR ',')
-		FROM user_langs_learn learn WHERE learn.user_id = u.id) as learninfo
+		FROM user_langs_learn learn WHERE learn.user_id = u.id) as learninfo,
+
+		u.city_name_en,
+		u.city_id,
+		u.region_id,
+		u.country_code,
+
+		u.home_city_name_en,
+		u.home_city_id,
+		u.home_region_id,
+		u.home_country_code
+
 	FROM users u
 	LEFT JOIN profiles_text pt ON u.id = pt.id
 	WHERE ` + condition + `
